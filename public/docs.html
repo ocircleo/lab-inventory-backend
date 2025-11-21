@@ -1,0 +1,1212 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lab Inventory API Documentation</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            overflow: hidden;
+        }
+
+        header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 40px;
+            text-align: center;
+        }
+
+        header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+        }
+
+        header p {
+            font-size: 1.1em;
+            opacity: 0.9;
+        }
+
+        .stats {
+            display: flex;
+            justify-content: space-around;
+            padding: 30px;
+            background: #f8f9fa;
+            border-bottom: 1px solid #e9ecef;
+        }
+
+        .stat {
+            text-align: center;
+        }
+
+        .stat-number {
+            font-size: 2em;
+            font-weight: bold;
+            color: #667eea;
+        }
+
+        .stat-label {
+            color: #666;
+            font-size: 0.9em;
+            margin-top: 5px;
+        }
+
+        nav {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            padding: 20px;
+            background: #f8f9fa;
+            border-bottom: 1px solid #e9ecef;
+        }
+
+        nav button {
+            padding: 10px 20px;
+            border: 2px solid #667eea;
+            background: white;
+            color: #667eea;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.3s ease;
+        }
+
+        nav button:hover,
+        nav button.active {
+            background: #667eea;
+            color: white;
+        }
+
+        .content {
+            padding: 40px;
+        }
+
+        .section {
+            display: none;
+            animation: fadeIn 0.3s ease;
+        }
+
+        .section.active {
+            display: block;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .section-title {
+            font-size: 1.8em;
+            color: #667eea;
+            margin-bottom: 30px;
+            padding-bottom: 15px;
+            border-bottom: 3px solid #667eea;
+        }
+
+        .api-endpoint {
+            background: #f8f9fa;
+            border-left: 4px solid #667eea;
+            padding: 20px;
+            margin-bottom: 25px;
+            border-radius: 6px;
+            transition: all 0.3s ease;
+        }
+
+        .api-endpoint:hover {
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.1);
+            transform: translateX(5px);
+        }
+
+        .endpoint-header {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            margin-bottom: 15px;
+            flex-wrap: wrap;
+        }
+
+        .method {
+            display: inline-block;
+            padding: 6px 12px;
+            border-radius: 4px;
+            font-weight: 700;
+            font-size: 0.85em;
+            color: white;
+        }
+
+        .method.get {
+            background: #0066cc;
+        }
+
+        .method.post {
+            background: #28a745;
+        }
+
+        .method.put {
+            background: #ffc107;
+            color: #333;
+        }
+
+        .method.delete {
+            background: #dc3545;
+        }
+
+        .path {
+            font-family: 'Courier New', monospace;
+            font-size: 1em;
+            background: white;
+            padding: 8px 12px;
+            border-radius: 4px;
+            flex-grow: 1;
+            border: 1px solid #ddd;
+        }
+
+        .access-badge {
+            display: inline-block;
+            padding: 6px 12px;
+            border-radius: 4px;
+            font-size: 0.85em;
+            font-weight: 600;
+        }
+
+        .access-badge.public {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .access-badge.private {
+            background: #f8d7da;
+            color: #721c24;
+        }
+
+        .endpoint-details {
+            margin-top: 15px;
+        }
+
+        .detail-group {
+            margin-bottom: 15px;
+        }
+
+        .detail-label {
+            font-weight: 700;
+            color: #667eea;
+            margin-bottom: 8px;
+            font-size: 0.95em;
+        }
+
+        .detail-content {
+            background: white;
+            padding: 12px;
+            border-radius: 4px;
+            border-left: 3px solid #667eea;
+            font-size: 0.95em;
+            line-height: 1.5;
+        }
+
+        .param-list,
+        .response-list {
+            list-style: none;
+        }
+
+        .param-list li,
+        .response-list li {
+            padding: 8px;
+            background: white;
+            margin-bottom: 8px;
+            border-radius: 4px;
+            border-left: 2px solid #667eea;
+        }
+
+        code {
+            background: #f4f4f4;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9em;
+        }
+
+        .example {
+            background: #2d2d2d;
+            color: #f8f8f2;
+            padding: 15px;
+            border-radius: 6px;
+            overflow-x: auto;
+            font-family: 'Courier New', monospace;
+            font-size: 0.85em;
+            margin-top: 10px;
+        }
+
+        .example pre {
+            margin: 0;
+        }
+
+        .success {
+            color: #28a745;
+        }
+
+        .error {
+            color: #dc3545;
+        }
+
+        footer {
+            background: #f8f9fa;
+            padding: 20px;
+            text-align: center;
+            color: #666;
+            border-top: 1px solid #e9ecef;
+        }
+
+        .base-url {
+            background: #e7f3ff;
+            border-left: 4px solid #2196F3;
+            padding: 15px;
+            border-radius: 6px;
+            margin-bottom: 30px;
+            font-family: 'Courier New', monospace;
+        }
+
+        .base-url-label {
+            font-weight: 700;
+            color: #1976D2;
+            margin-bottom: 8px;
+        }
+
+        .base-url-value {
+            font-size: 1.05em;
+            color: #333;
+        }
+
+        .note {
+            background: #fff3cd;
+            border-left: 4px solid #ffc107;
+            padding: 12px;
+            border-radius: 4px;
+            margin-top: 10px;
+            font-size: 0.95em;
+        }
+
+        .auth-info {
+            background: #f8d7da;
+            border-left: 4px solid #dc3545;
+            padding: 15px;
+            border-radius: 6px;
+            margin-bottom: 20px;
+        }
+
+        .response-example {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 6px;
+            margin-top: 10px;
+            border-left: 3px solid #28a745;
+        }
+
+        .response-example.error {
+            border-left-color: #dc3545;
+        }
+
+        @media (max-width: 768px) {
+            header h1 {
+                font-size: 1.8em;
+            }
+
+            .stats {
+                flex-direction: column;
+                gap: 20px;
+            }
+
+            nav {
+                flex-direction: column;
+            }
+
+            nav button {
+                width: 100%;
+            }
+
+            .endpoint-header {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+
+            .path {
+                width: 100%;
+            }
+
+            .content {
+                padding: 20px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>📚 Lab Inventory API</h1>
+            <p>Complete API Documentation</p>
+        </header>
+
+        <div class="stats">
+            <div class="stat">
+                <div class="stat-number">21</div>
+                <div class="stat-label">Total Endpoints</div>
+            </div>
+            <div class="stat">
+                <div class="stat-number">4</div>
+                <div class="stat-label">Categories</div>
+            </div>
+            <div class="stat">
+                <div class="stat-number">3</div>
+                <div class="stat-label">User Roles</div>
+            </div>
+        </div>
+
+        <nav>
+            <button class="nav-btn active" data-section="overview">Overview</button>
+            <button class="nav-btn" data-section="common">Common APIs</button>
+            <button class="nav-btn" data-section="admin">Admin APIs</button>
+            <button class="nav-btn" data-section="staff">Staff APIs</button>
+            <button class="nav-btn" data-section="auth">Authentication</button>
+        </nav>
+
+        <div class="content">
+            <!-- OVERVIEW SECTION -->
+            <section id="overview" class="section active">
+                <h2 class="section-title">📖 Overview</h2>
+
+                <div class="base-url">
+                    <div class="base-url-label">Base URL:</div>
+                    <div class="base-url-value">http://localhost:5000</div>
+                </div>
+
+                <div class="auth-info">
+                    <strong>⚠️ Authentication Required:</strong> Most endpoints require a valid JWT token in cookies. Login first to obtain a token.
+                </div>
+
+                <h3 style="margin-top: 30px; color: #667eea;">API Structure</h3>
+                <p style="margin-top: 10px; line-height: 1.8;">
+                    The API is organized into four main categories:
+                </p>
+
+                <div style="margin-top: 20px;">
+                    <div class="api-endpoint">
+                        <strong>🔐 Authentication</strong>
+                        <p style="margin-top: 8px; color: #666;">Login, Register, Token Validation & Logout</p>
+                    </div>
+                    <div class="api-endpoint">
+                        <strong>👤 Common User APIs</strong>
+                        <p style="margin-top: 8px; color: #666;">Profile Management, Device Viewing & Status Updates</p>
+                    </div>
+                    <div class="api-endpoint">
+                        <strong>⚙️ Admin APIs</strong>
+                        <p style="margin-top: 8px; color: #666;">Lab CRUD, Device CRUD, Logs, Staff Management</p>
+                    </div>
+                    <div class="api-endpoint">
+                        <strong>👨‍💼 Staff APIs</strong>
+                        <p style="margin-top: 8px; color: #666;">View Assigned Devices & Update Device Status</p>
+                    </div>
+                </div>
+
+                <h3 style="margin-top: 30px; color: #667eea;">Response Format</h3>
+                <p style="margin-top: 10px;">All endpoints return JSON responses with the following structure:</p>
+                <div class="example" style="margin-top: 15px;">
+                    <pre>{
+  "success": true,
+  "message": "Operation Successful",
+  "data": { /* endpoint-specific data */ }
+}</pre>
+                </div>
+
+                <h3 style="margin-top: 30px; color: #667eea;">HTTP Status Codes</h3>
+                <ul class="param-list" style="margin-top: 15px;">
+                    <li><code>200</code> - Success (GET, PUT)</li>
+                    <li><code>201</code> - Created (POST)</li>
+                    <li><code>400</code> - Bad Request (validation error)</li>
+                    <li><code>401</code> - Unauthorized (missing/invalid token)</li>
+                    <li><code>403</code> - Forbidden (insufficient permissions)</li>
+                    <li><code>404</code> - Not Found</li>
+                    <li><code>500</code> - Server Error</li>
+                </ul>
+            </section>
+
+            <!-- COMMON APIS SECTION -->
+            <section id="common" class="section">
+                <h2 class="section-title">👤 Common User APIs</h2>
+                <p style="margin-bottom: 25px; color: #666;">Endpoints available to all authenticated users</p>
+
+                <!-- View Profile -->
+                <div class="api-endpoint">
+                    <div class="endpoint-header">
+                        <span class="method get">GET</span>
+                        <span class="path">/common/profile</span>
+                        <span class="access-badge private">Private</span>
+                    </div>
+                    <div class="endpoint-details">
+                        <div class="detail-group">
+                            <div class="detail-label">Description</div>
+                            <div class="detail-content">Retrieve current user's profile information</div>
+                        </div>
+                        <div class="detail-group">
+                            <div class="detail-label">Authentication</div>
+                            <div class="detail-content">Required - Cookie-based token</div>
+                        </div>
+                        <div class="detail-group">
+                            <div class="detail-label">Success Response</div>
+                            <div class="response-example">
+                                <pre>{
+  "success": true,
+  "message": "Profile retrieved successfully.",
+  "data": {
+    "id": "user_id",
+    "name": "John Doe",
+    "email_address": "john@example.com",
+    "phone": "123-456-7890",
+    "address": "123 Main St",
+    "role": "staff",
+    "customId": "USR001",
+    "labs": [{ "_id": "lab_id", ... }],
+    "createdAt": "2025-01-01T00:00:00Z"
+  }
+}</pre>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Update Profile -->
+                <div class="api-endpoint">
+                    <div class="endpoint-header">
+                        <span class="method put">PUT</span>
+                        <span class="path">/common/profile</span>
+                        <span class="access-badge private">Private</span>
+                    </div>
+                    <div class="endpoint-details">
+                        <div class="detail-group">
+                            <div class="detail-label">Description</div>
+                            <div class="detail-content">Update user's profile information</div>
+                        </div>
+                        <div class="detail-group">
+                            <div class="detail-label">Request Body</div>
+                            <ul class="param-list">
+                                <li><code>name</code> (string, optional) - User's full name</li>
+                                <li><code>phone</code> (string, optional) - Phone number</li>
+                                <li><code>address</code> (string, optional) - Address</li>
+                            </ul>
+                        </div>
+                        <div class="detail-group">
+                            <div class="detail-label">Example Request</div>
+                            <div class="example">
+                                <pre>PUT /common/profile
+{
+  "name": "John Doe Updated",
+  "phone": "987-654-3210"
+}</pre>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Change Password -->
+                <div class="api-endpoint">
+                    <div class="endpoint-header">
+                        <span class="method put">PUT</span>
+                        <span class="path">/common/change-password</span>
+                        <span class="access-badge private">Private</span>
+                    </div>
+                    <div class="endpoint-details">
+                        <div class="detail-group">
+                            <div class="detail-label">Description</div>
+                            <div class="detail-content">Change user's password with current password verification</div>
+                        </div>
+                        <div class="detail-group">
+                            <div class="detail-label">Request Body</div>
+                            <ul class="param-list">
+                                <li><code>currentPassword</code> (string, required) - Current password</li>
+                                <li><code>newPassword</code> (string, required) - New password (min 6 chars)</li>
+                                <li><code>confirmPassword</code> (string, required) - Confirm new password</li>
+                            </ul>
+                        </div>
+                        <div class="detail-group">
+                            <div class="detail-label">Validation</div>
+                            <div class="note">
+                                ✓ Passwords must match<br>
+                                ✓ New password must be at least 6 characters<br>
+                                ✓ Current password must be correct
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- View Devices -->
+                <div class="api-endpoint">
+                    <div class="endpoint-header">
+                        <span class="method get">GET</span>
+                        <span class="path">/common/devices</span>
+                        <span class="access-badge private">Private</span>
+                    </div>
+                    <div class="endpoint-details">
+                        <div class="detail-group">
+                            <div class="detail-label">Description</div>
+                            <div class="detail-content">Get paginated list of devices in user's assigned labs</div>
+                        </div>
+                        <div class="detail-group">
+                            <div class="detail-label">Query Parameters</div>
+                            <ul class="param-list">
+                                <li><code>page</code> (number, default: 1) - Page number</li>
+                                <li><code>limit</code> (number, default: 10) - Items per page</li>
+                            </ul>
+                        </div>
+                        <div class="detail-group">
+                            <div class="detail-label">Example URL</div>
+                            <div class="example">
+                                <pre>/common/devices?page=1&limit=10</pre>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Mark Device Status -->
+                <div class="api-endpoint">
+                    <div class="endpoint-header">
+                        <span class="method put">PUT</span>
+                        <span class="path">/common/devices/:deviceId/mark-status</span>
+                        <span class="access-badge private">Private</span>
+                    </div>
+                    <div class="endpoint-details">
+                        <div class="detail-group">
+                            <div class="detail-label">Description</div>
+                            <div class="detail-content">Mark a device status and create a log entry</div>
+                        </div>
+                        <div class="detail-group">
+                            <div class="detail-label">Path Parameters</div>
+                            <ul class="param-list">
+                                <li><code>deviceId</code> (string, required) - Device's MongoDB ID</li>
+                            </ul>
+                        </div>
+                        <div class="detail-group">
+                            <div class="detail-label">Request Body</div>
+                            <ul class="param-list">
+                                <li><code>status</code> (string, required) - One of: broken, repaired, replaced, transferred, under_maintenance</li>
+                                <li><code>message</code> (string, optional) - Additional message/notes</li>
+                            </ul>
+                        </div>
+                        <div class="detail-group">
+                            <div class="detail-label">Example Request</div>
+                            <div class="example">
+                                <pre>PUT /common/devices/640a1b2c3d4e5f6g7h8i9j0k/mark-status
+{
+  "status": "broken",
+  "message": "Screen malfunction detected"
+}</pre>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ADMIN APIS SECTION -->
+            <section id="admin" class="section">
+                <h2 class="section-title">⚙️ Admin APIs</h2>
+                <p style="margin-bottom: 25px; color: #666;">Full control over labs, devices, logs, and staff management. Requires admin role.</p>
+
+                <h3 style="color: #667eea; margin-top: 30px; margin-bottom: 15px;">Lab Management (4 endpoints)</h3>
+
+                <!-- Create Lab -->
+                <div class="api-endpoint">
+                    <div class="endpoint-header">
+                        <span class="method post">POST</span>
+                        <span class="path">/admin/labs</span>
+                        <span class="access-badge private">Private (Admin)</span>
+                    </div>
+                    <div class="endpoint-details">
+                        <div class="detail-group">
+                            <div class="detail-label">Description</div>
+                            <div class="detail-content">Create a new lab</div>
+                        </div>
+                        <div class="detail-group">
+                            <div class="detail-label">Request Body</div>
+                            <ul class="param-list">
+                                <li><code>name</code> (string, required) - Lab name</li>
+                                <li><code>type</code> (string, required) - Lab type (e.g., "Computer Lab", "Chemistry Lab")</li>
+                                <li><code>dept</code> (string, required) - Department</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Get Labs -->
+                <div class="api-endpoint">
+                    <div class="endpoint-header">
+                        <span class="method get">GET</span>
+                        <span class="path">/admin/labs</span>
+                        <span class="access-badge private">Private (Admin)</span>
+                    </div>
+                    <div class="endpoint-details">
+                        <div class="detail-group">
+                            <div class="detail-label">Description</div>
+                            <div class="detail-content">Get all labs with pagination</div>
+                        </div>
+                        <div class="detail-group">
+                            <div class="detail-label">Query Parameters</div>
+                            <ul class="param-list">
+                                <li><code>page</code> (number, default: 1)</li>
+                                <li><code>limit</code> (number, default: 10)</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Get Lab Details -->
+                <div class="api-endpoint">
+                    <div class="endpoint-header">
+                        <span class="method get">GET</span>
+                        <span class="path">/admin/labs/:labId</span>
+                        <span class="access-badge private">Private (Admin)</span>
+                    </div>
+                    <div class="endpoint-details">
+                        <div class="detail-group">
+                            <div class="detail-label">Description</div>
+                            <div class="detail-content">Get specific lab details with all relationships</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Update Lab -->
+                <div class="api-endpoint">
+                    <div class="endpoint-header">
+                        <span class="method put">PUT</span>
+                        <span class="path">/admin/labs/:labId</span>
+                        <span class="access-badge private">Private (Admin)</span>
+                    </div>
+                    <div class="endpoint-details">
+                        <div class="detail-group">
+                            <div class="detail-label">Description</div>
+                            <div class="detail-content">Update lab information</div>
+                        </div>
+                        <div class="detail-group">
+                            <div class="detail-label">Request Body</div>
+                            <ul class="param-list">
+                                <li><code>name</code> (string, optional)</li>
+                                <li><code>type</code> (string, optional)</li>
+                                <li><code>dept</code> (string, optional)</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Delete Lab -->
+                <div class="api-endpoint">
+                    <div class="endpoint-header">
+                        <span class="method delete">DELETE</span>
+                        <span class="path">/admin/labs/:labId</span>
+                        <span class="access-badge private">Private (Admin)</span>
+                    </div>
+                    <div class="endpoint-details">
+                        <div class="detail-group">
+                            <div class="detail-label">Description</div>
+                            <div class="detail-content">Delete a lab and remove it from all users</div>
+                        </div>
+                    </div>
+                </div>
+
+                <h3 style="color: #667eea; margin-top: 30px; margin-bottom: 15px;">Device Management (4 endpoints)</h3>
+
+                <!-- Create Device -->
+                <div class="api-endpoint">
+                    <div class="endpoint-header">
+                        <span class="method post">POST</span>
+                        <span class="path">/admin/devices</span>
+                        <span class="access-badge private">Private (Admin)</span>
+                    </div>
+                    <div class="endpoint-details">
+                        <div class="detail-group">
+                            <div class="detail-label">Description</div>
+                            <div class="detail-content">Create a new device/item</div>
+                        </div>
+                        <div class="detail-group">
+                            <div class="detail-label">Request Body</div>
+                            <ul class="param-list">
+                                <li><code>name</code> (string, required) - Device name</li>
+                                <li><code>category</code> (string, required) - Category (e.g., "Laptop", "Microscope")</li>
+                                <li><code>labId</code> (string, required) - Lab MongoDB ID</li>
+                                <li><code>majorComponent</code> (object, optional) - Major components</li>
+                                <li><code>minorDescription</code> (string, optional) - Additional description</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Get Devices -->
+                <div class="api-endpoint">
+                    <div class="endpoint-header">
+                        <span class="method get">GET</span>
+                        <span class="path">/admin/devices</span>
+                        <span class="access-badge private">Private (Admin)</span>
+                    </div>
+                    <div class="endpoint-details">
+                        <div class="detail-group">
+                            <div class="detail-label">Description</div>
+                            <div class="detail-content">Get all devices with pagination</div>
+                        </div>
+                        <div class="detail-group">
+                            <div class="detail-label">Query Parameters</div>
+                            <ul class="param-list">
+                                <li><code>page</code> (number, default: 1)</li>
+                                <li><code>limit</code> (number, default: 10)</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Get Device Details -->
+                <div class="api-endpoint">
+                    <div class="endpoint-header">
+                        <span class="method get">GET</span>
+                        <span class="path">/admin/devices/:deviceId</span>
+                        <span class="access-badge private">Private (Admin)</span>
+                    </div>
+                    <div class="endpoint-details">
+                        <div class="detail-group">
+                            <div class="detail-label">Description</div>
+                            <div class="detail-content">Get specific device details</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Update Device -->
+                <div class="api-endpoint">
+                    <div class="endpoint-header">
+                        <span class="method put">PUT</span>
+                        <span class="path">/admin/devices/:deviceId</span>
+                        <span class="access-badge private">Private (Admin)</span>
+                    </div>
+                    <div class="endpoint-details">
+                        <div class="detail-group">
+                            <div class="detail-label">Description</div>
+                            <div class="detail-content">Update device information</div>
+                        </div>
+                        <div class="detail-group">
+                            <div class="detail-label">Request Body</div>
+                            <ul class="param-list">
+                                <li><code>name</code> (string, optional)</li>
+                                <li><code>category</code> (string, optional)</li>
+                                <li><code>majorComponent</code> (object, optional)</li>
+                                <li><code>minorDescription</code> (string, optional)</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Delete Device -->
+                <div class="api-endpoint">
+                    <div class="endpoint-header">
+                        <span class="method delete">DELETE</span>
+                        <span class="path">/admin/devices/:deviceId</span>
+                        <span class="access-badge private">Private (Admin)</span>
+                    </div>
+                    <div class="endpoint-details">
+                        <div class="detail-group">
+                            <div class="detail-label">Description</div>
+                            <div class="detail-content">Delete a device</div>
+                        </div>
+                    </div>
+                </div>
+
+                <h3 style="color: #667eea; margin-top: 30px; margin-bottom: 15px;">Log Management (2 endpoints)</h3>
+
+                <!-- Get Logs -->
+                <div class="api-endpoint">
+                    <div class="endpoint-header">
+                        <span class="method get">GET</span>
+                        <span class="path">/admin/logs</span>
+                        <span class="access-badge private">Private (Admin)</span>
+                    </div>
+                    <div class="endpoint-details">
+                        <div class="detail-group">
+                            <div class="detail-label">Description</div>
+                            <div class="detail-content">Get all activity logs with pagination (sorted by newest first)</div>
+                        </div>
+                        <div class="detail-group">
+                            <div class="detail-label">Query Parameters</div>
+                            <ul class="param-list">
+                                <li><code>page</code> (number, default: 1)</li>
+                                <li><code>limit</code> (number, default: 10)</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Publish Logs -->
+                <div class="api-endpoint">
+                    <div class="endpoint-header">
+                        <span class="method post">POST</span>
+                        <span class="path">/admin/logs/publish</span>
+                        <span class="access-badge private">Private (Admin)</span>
+                    </div>
+                    <div class="endpoint-details">
+                        <div class="detail-group">
+                            <div class="detail-label">Description</div>
+                            <div class="detail-content">Export all logs in JSON or CSV format</div>
+                        </div>
+                        <div class="detail-group">
+                            <div class="detail-label">Request Body</div>
+                            <ul class="param-list">
+                                <li><code>format</code> (string, optional: "json", "csv") - Default: "json"</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+
+                <h3 style="color: #667eea; margin-top: 30px; margin-bottom: 15px;">Staff Management (2 endpoints)</h3>
+
+                <!-- Add Staff -->
+                <div class="api-endpoint">
+                    <div class="endpoint-header">
+                        <span class="method post">POST</span>
+                        <span class="path">/admin/labs/:labId/staffs/:staffId</span>
+                        <span class="access-badge private">Private (Admin)</span>
+                    </div>
+                    <div class="endpoint-details">
+                        <div class="detail-group">
+                            <div class="detail-label">Description</div>
+                            <div class="detail-content">Add a staff member to a lab</div>
+                        </div>
+                        <div class="detail-group">
+                            <div class="detail-label">Path Parameters</div>
+                            <ul class="param-list">
+                                <li><code>labId</code> (string, required) - Lab MongoDB ID</li>
+                                <li><code>staffId</code> (string, required) - Staff user MongoDB ID</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Remove Staff -->
+                <div class="api-endpoint">
+                    <div class="endpoint-header">
+                        <span class="method delete">DELETE</span>
+                        <span class="path">/admin/labs/:labId/staffs/:staffId</span>
+                        <span class="access-badge private">Private (Admin)</span>
+                    </div>
+                    <div class="endpoint-details">
+                        <div class="detail-group">
+                            <div class="detail-label">Description</div>
+                            <div class="detail-content">Remove a staff member from a lab</div>
+                        </div>
+                        <div class="detail-group">
+                            <div class="detail-label">Path Parameters</div>
+                            <ul class="param-list">
+                                <li><code>labId</code> (string, required) - Lab MongoDB ID</li>
+                                <li><code>staffId</code> (string, required) - Staff user MongoDB ID</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- STAFF APIS SECTION -->
+            <section id="staff" class="section">
+                <h2 class="section-title">👨‍💼 Staff APIs</h2>
+                <p style="margin-bottom: 25px; color: #666;">Limited access for staff members to view and update assigned devices</p>
+
+                <!-- View Assigned Devices -->
+                <div class="api-endpoint">
+                    <div class="endpoint-header">
+                        <span class="method get">GET</span>
+                        <span class="path">/staff/devices</span>
+                        <span class="access-badge private">Private (Staff/Admin)</span>
+                    </div>
+                    <div class="endpoint-details">
+                        <div class="detail-group">
+                            <div class="detail-label">Description</div>
+                            <div class="detail-content">Get devices from labs assigned to the staff member (with pagination)</div>
+                        </div>
+                        <div class="detail-group">
+                            <div class="detail-label">Query Parameters</div>
+                            <ul class="param-list">
+                                <li><code>page</code> (number, default: 1)</li>
+                                <li><code>limit</code> (number, default: 10)</li>
+                            </ul>
+                        </div>
+                        <div class="note">
+                            Staff members can only see devices in their assigned labs. Admins can see all devices.
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Update Device Status (Staff) -->
+                <div class="api-endpoint">
+                    <div class="endpoint-header">
+                        <span class="method put">PUT</span>
+                        <span class="path">/staff/devices/:deviceId/mark-status</span>
+                        <span class="access-badge private">Private (Staff/Admin)</span>
+                    </div>
+                    <div class="endpoint-details">
+                        <div class="detail-group">
+                            <div class="detail-label">Description</div>
+                            <div class="detail-content">Update device status (with access control - only assigned labs)</div>
+                        </div>
+                        <div class="detail-group">
+                            <div class="detail-label">Path Parameters</div>
+                            <ul class="param-list">
+                                <li><code>deviceId</code> (string, required) - Device MongoDB ID</li>
+                            </ul>
+                        </div>
+                        <div class="detail-group">
+                            <div class="detail-label">Request Body</div>
+                            <ul class="param-list">
+                                <li><code>status</code> (string, required) - broken, repaired, replaced, transferred, under_maintenance</li>
+                                <li><code>message</code> (string, optional) - Additional notes</li>
+                            </ul>
+                        </div>
+                        <div class="note">
+                            ⚠️ Staff can only update devices in their assigned labs. Attempting to update devices in unassigned labs will result in a 403 Forbidden error.
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- AUTHENTICATION SECTION -->
+            <section id="auth" class="section">
+                <h2 class="section-title">🔐 Authentication APIs</h2>
+                <p style="margin-bottom: 25px; color: #666;">User authentication and token management</p>
+
+                <!-- Register -->
+                <div class="api-endpoint">
+                    <div class="endpoint-header">
+                        <span class="method post">POST</span>
+                        <span class="path">/auth/register</span>
+                        <span class="access-badge public">Public</span>
+                    </div>
+                    <div class="endpoint-details">
+                        <div class="detail-group">
+                            <div class="detail-label">Description</div>
+                            <div class="detail-content">Register a new user account</div>
+                        </div>
+                        <div class="detail-group">
+                            <div class="detail-label">Request Body</div>
+                            <ul class="param-list">
+                                <li><code>name</code> (string, required) - Full name</li>
+                                <li><code>email_address</code> (string, required) - Email address (must be unique)</li>
+                                <li><code>password</code> (string, required) - Password</li>
+                                <li><code>news_letter</code> (boolean, optional) - Subscribe to newsletter</li>
+                            </ul>
+                        </div>
+                        <div class="detail-group">
+                            <div class="detail-label">Response</div>
+                            <div class="response-example">
+                                <pre>{
+  "success": true,
+  "message": "Operation Successful",
+  "data": {
+    "name": "John Doe",
+    "email_address": "john@example.com",
+    "role": "user"
+  }
+}</pre>
+                            </div>
+                        </div>
+                        <div class="note">
+                            ✓ A JWT token is automatically set in cookies<br>
+                            ✓ Default role is "user"
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Login -->
+                <div class="api-endpoint">
+                    <div class="endpoint-header">
+                        <span class="method put">PUT</span>
+                        <span class="path">/auth/login</span>
+                        <span class="access-badge public">Public</span>
+                    </div>
+                    <div class="endpoint-details">
+                        <div class="detail-group">
+                            <div class="detail-label">Description</div>
+                            <div class="detail-content">Login with email and password</div>
+                        </div>
+                        <div class="detail-group">
+                            <div class="detail-label">Request Body</div>
+                            <ul class="param-list">
+                                <li><code>email_address</code> (string, required) - User email</li>
+                                <li><code>password</code> (string, required) - User password</li>
+                                <li><code>remember</code> (boolean, optional) - Remember for 7 days (default: 1 hour)</li>
+                            </ul>
+                        </div>
+                        <div class="detail-group">
+                            <div class="detail-label">Example Request</div>
+                            <div class="example">
+                                <pre>PUT /auth/login
+{
+  "email_address": "john@example.com",
+  "password": "mypassword",
+  "remember": true
+}</pre>
+                            </div>
+                        </div>
+                        <div class="note">
+                            ✓ JWT token is set in httpOnly cookie<br>
+                            ✓ Token expires in 1 hour (or 7 days if remember=true)
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Login with Token -->
+                <div class="api-endpoint">
+                    <div class="endpoint-header">
+                        <span class="method put">PUT</span>
+                        <span class="path">/auth/login_with_token</span>
+                        <span class="access-badge public">Public</span>
+                    </div>
+                    <div class="endpoint-details">
+                        <div class="detail-group">
+                            <div class="detail-label">Description</div>
+                            <div class="detail-content">Validate existing token and retrieve user info (for session persistence)</div>
+                        </div>
+                        <div class="detail-group">
+                            <div class="detail-label">Request Body</div>
+                            <ul class="param-list">
+                                <li><code>token</code> (string, required) - JWT token (with or without "Bearer " prefix)</li>
+                            </ul>
+                        </div>
+                        <div class="detail-group">
+                            <div class="detail-label">Success Response</div>
+                            <div class="response-example">
+                                <pre>{
+  "success": true,
+  "message": "Token valid.",
+  "data": {
+    "name": "John Doe",
+    "email": "john@example.com",
+    "role": "staff"
+  }
+}</pre>
+                            </div>
+                        </div>
+                        <div class="detail-group">
+                            <div class="detail-label">Error Response</div>
+                            <div class="response-example error">
+                                <pre>{
+  "success": false,
+  "message": "Operation Failed",
+  "data": {}
+}</pre>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Logout -->
+                <div class="api-endpoint">
+                    <div class="endpoint-header">
+                        <span class="method delete">DELETE</span>
+                        <span class="path">/auth/logout</span>
+                        <span class="access-badge private">Private</span>
+                    </div>
+                    <div class="endpoint-details">
+                        <div class="detail-group">
+                            <div class="detail-label">Description</div>
+                            <div class="detail-content">Logout user and invalidate token</div>
+                        </div>
+                        <div class="detail-group">
+                            <div class="detail-label">Authentication</div>
+                            <div class="detail-content">Requires valid token in cookies</div>
+                        </div>
+                        <div class="note">
+                            ✓ Token is removed from database<br>
+                            ✓ Cookie is cleared from client
+                        </div>
+                    </div>
+                </div>
+
+                <h3 style="color: #667eea; margin-top: 30px; margin-bottom: 15px;">Token Management</h3>
+                <div class="api-endpoint">
+                    <strong>Token Storage</strong>
+                    <p style="margin-top: 8px; color: #666;">
+                        Tokens are stored as httpOnly cookies for security. They are automatically included in subsequent requests.
+                    </p>
+                </div>
+
+                <div class="api-endpoint">
+                    <strong>Token Expiration</strong>
+                    <ul class="param-list" style="margin-top: 8px;">
+                        <li>Default: 1 hour after login</li>
+                        <li>With "remember": 7 days</li>
+                    </ul>
+                </div>
+
+                <div class="api-endpoint">
+                    <strong>Token Validation</strong>
+                    <p style="margin-top: 8px; color: #666;">
+                        All protected endpoints automatically verify the token. If invalid or expired, a 401 response is returned.
+                    </p>
+                </div>
+            </section>
+        </div>
+
+        <footer>
+            <p>&copy; 2025 Lab Inventory Management System. All rights reserved.</p>
+            <p style="margin-top: 10px; font-size: 0.9em;">API Version 1.0 • Last Updated: November 16, 2025</p>
+        </footer>
+    </div>
+
+    <script>
+        // Navigation functionality
+        document.querySelectorAll('.nav-btn').forEach(btn => {
+            btn.addEventListener('click', function() {
+                // Remove active class from all buttons
+                document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+                // Add active class to clicked button
+                this.classList.add('active');
+
+                // Hide all sections
+                document.querySelectorAll('.section').forEach(section => {
+                    section.classList.remove('active');
+                });
+
+                // Show selected section
+                const sectionId = this.getAttribute('data-section');
+                document.getElementById(sectionId).classList.add('active');
+
+                // Scroll to top
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+            });
+        });
+
+        // Smooth scroll for any links
+        document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+            anchor.addEventListener('click', function(e) {
+                e.preventDefault();
+                const target = document.querySelector(this.getAttribute('href'));
+                if (target) {
+                    target.scrollIntoView({ behavior: 'smooth' });
+                }
+            });
+        });
+    </script>
+</body>
+</html>
