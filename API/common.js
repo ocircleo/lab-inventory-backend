@@ -1,6 +1,6 @@
 const express = require("express");
 const { isUsersRegistered } = require("../utls/AuthFunctations");
-const { Users } = require("../Models/Users");
+const Users = require("../Models/Users");
 const { sendSuccess, sendError } = require("../utls/ReturnFunctations");
 const Logs = require("../Models/Logs");
 const Labs = require("../Models/Labs");
@@ -8,6 +8,7 @@ const bcrypt = require("bcrypt");
 const Items = require("../Models/Items");
 const Delay = require("../utls/Delay");
 const Templates = require("../Models/Templates");
+const { default: mongoose } = require("mongoose");
 const common_router = express.Router();
 
 // ============ PROFILE MANAGEMENT ============
@@ -133,7 +134,7 @@ common_router.get("/labs", isUsersRegistered, async (req, res) => {
     const filters = [null, undefined, ""];
     if (filters.includes(dept)) dept = "all";
 
-    if (dept == "all") {
+    if (dept && dept.startsWith("@all")) {
       const page = parseInt(req.query.page) || 1;
       const limit = parseInt(req.query.limit) || 10;
       const skip = (page - 1) * limit;
@@ -171,8 +172,8 @@ common_router.get("/labs/:labId", isUsersRegistered, async (req, res) => {
     const labId = req.params.labId;
     const fullLab = await Labs.findById({ _id: labId })
       .populate("items")
-      .populate({ path: "admins", select: "name email" })
-      .populate({ path: "staffs", select: "name email" });
+      .populate({ path: "admins", select: "_id name email_address role" })
+      .populate({ path: "staffs", select: "_id name email_address role" });
     return sendSuccess(res, 200, "Devices retrieved successfully.", fullLab);
   } catch (error) {
     console.log(error);
@@ -185,10 +186,9 @@ common_router.get("/searchLab", async (req, res) => {
     let result = await Labs.find({
       name: { $regex: name, $options: "i" },
     });
-    if (result && result.length == 0) {
-      if (name == "all") result = await Labs.find();
-      console.log(result);
-    }
+    if (result && result.length == 0)
+      if (name.startsWith("@all")) result = await Labs.find();
+
     res.send({
       success: true,
       message: "Hare is the search Result",
@@ -203,6 +203,58 @@ common_router.get("/searchLab", async (req, res) => {
     });
   }
 });
+common_router.get("/searchUser", async (req, res) => {
+  const email = req.query.user || "";
+  try {
+    let result;
+    if (email.startsWith("@")) {
+      if (email.startsWith("@staff")) {
+        let id = email.split("-")[1];
+        if (id == "all") {
+          const staffs = await Users.find({ role: "staff" });
+          result = staffs;
+        } else {
+          let isValid = mongoose.Types.ObjectId.isValid(id);
+          if (isValid) {
+            let lab = await Labs.findById(id).populate(
+              "staffs",
+              "name email_address _id role labs"
+            );
+            result = lab?.staffs || [];
+          }
+        }
+      } else if (email.startsWith("@admin")) {
+        let id = email.split("-")[1];
+        if (id == "all") {
+          const admins = await Users.find({ role: "admin" });
+          result = admins;
+        } else {
+          let isValid = mongoose.Types.ObjectId.isValid(id);
+          if (isValid) {
+            let admin = await Users.findById(id);
+            if (admin) result = [admin];
+            else result = [];
+          }
+        }
+      } else result = [];
+    } else {
+      result = await Users.find({
+        email_address: { $regex: email, $options: "i" },
+      });
+    }
+    res.send({
+      success: true,
+      message: "Hare is the search Result",
+      data: result || [],
+    });
+  } catch (error) {
+    res.send({
+      success: false,
+      data: [],
+      message: "Server error occurred",
+    });
+  }
+});
 common_router.get("/searchTemplate", async (req, res) => {
   const name = req.query.template || "";
   try {
@@ -210,7 +262,7 @@ common_router.get("/searchTemplate", async (req, res) => {
       category: { $regex: name, $options: "i" },
     });
     if (result && result.length == 0) {
-      if (name == "all") result = await Templates.find();
+      if (name.startsWith("@all")) result = await Templates.find();
     }
     res.send({
       success: true,

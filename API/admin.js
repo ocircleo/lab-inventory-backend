@@ -1,7 +1,7 @@
 const express = require("express");
 const { isUserAdmin } = require("../utls/AuthFunctations");
 const Labs = require("../Models/Labs");
-const { Users } = require("../Models/Users");
+const Users = require("../Models/Users");
 const { sendSuccess, sendError } = require("../utls/ReturnFunctations");
 const Logs = require("../Models/Logs");
 const { printConsumedTime } = require("../utls/RequestTimeInfo");
@@ -542,51 +542,86 @@ admin_router.post("/logs/publish", isUserAdmin, async (req, res) => {
  * @description Add staff to a lab
  * @access Private (Admin only)
  */
-admin_router.post(
-  "/labs/:labId/staffs/:staffId",
-  isUserAdmin,
-  async (req, res) => {
-    try {
-      const { labId, staffId } = req.params;
+admin_router.put("/makeStaff", isUserAdmin, async (req, res) => {
+  try {
+    const { staffId } = req.body;
 
-      // Verify staff user exists and has staff role
-      const staffUser = await Users.findById(staffId);
-      if (
-        !staffUser ||
-        (staffUser.role !== "staff" && staffUser.role !== "admin")
-      ) {
-        return sendError(res, 404, "Staff user not found or invalid role.");
-      }
+    // Verify staff user exists and does not has staff or admin role
+    const staffUser = await Users.findById(staffId);
+    if (!staffUser) return sendError(res, 404, "No User Found");
+    else if (staffUser.role == "staff" || staffUser.role == "admin") {
+      return sendError(res, 401, "The user is already " + staffUser.role);
+    }
 
-      // Add staff to lab
-      const updatedLab = await Labs.findByIdAndUpdate(
-        labId,
-        { $addToSet: { staffs: staffId } },
-        { new: true }
-      )
-        .populate("admins", "name email_address")
-        .populate("staffs", "name email_address")
-        .populate("items");
+    const result = await Users.findByIdAndUpdate(
+      staffId,
+      { role: "staff" },
+      { new: true }
+    );
+    if (!result) return sendError(res, 404, "Some Error happened ");
 
-      if (!updatedLab) {
-        return sendError(res, 404, "Lab not found.");
-      }
+    return sendSuccess(res, 201, "Staff added to lab successfully.", staffUser);
+  } catch (error) {
+    console.log(error);
+    return sendError(res, 500, "Server error while adding staff.");
+  }
+});
+admin_router.put("/assignStaff", isUserAdmin, async (req, res) => {
+  try {
+    const { labId, staffId } = req.body;
 
+    // Verify staff user exists and has staff role
+    const staffUser = await Users.findById(staffId);
+    console.log(staffUser?.role != "staff");
+    console.log(staffUser);
+    if (!staffUser) return sendError(res, 404, "No User Found");
+    else if (staffUser?.role != "staff")
+      return sendError(res, 403, "user-not-staff");
+
+    // Add staff to lab
+    const updatedLab = await Labs.findOneAndUpdate(
+      { _id: labId, staffs: { $ne: staffId } },
+      { $addToSet: { staffs: staffId } },
+      { new: true }
+    );
+    if (!updatedLab) {
+      return sendError(res, 404, "Failed to Add Staff");
+    }
+    if (updatedLab)
       // Add lab to staff's labs array
       await Users.findByIdAndUpdate(staffId, { $addToSet: { labs: labId } });
 
-      printConsumedTime(req, "Add Staff to Lab ---");
-      return sendSuccess(res, 201, "Staff added to lab successfully.", {
-        labId: updatedLab._id,
-        staffAdded: staffUser.name,
-        totalStaffs: updatedLab.staffs.length,
-      });
-    } catch (error) {
-      console.log(error);
-      return sendError(res, 500, "Server error while adding staff.");
-    }
+    return sendSuccess(res, 201, "Staff added to lab successfully.", {
+      labId: updatedLab._id,
+      staffAdded: staffUser.name,
+      totalStaffs: updatedLab.staffs.length,
+    });
+  } catch (error) {
+    console.log(error);
+    return sendError(res, 500, "Server error while adding staff.");
   }
-);
+});
+admin_router.put("/removeStaff", isUserAdmin, async (req, res) => {
+  try {
+    const { labId, staffId } = req.body;
+    const updatedLab = await Labs.findOneAndUpdate(
+      { _id: labId },
+      { $pull: { staffs: staffId } },
+      { new: true }
+    );
+    if (!updatedLab) {
+      return sendError(res, 404, "Failed to Remove Staff");
+    }
+    if (updatedLab)
+      // Add lab to staff's labs array
+      await Users.findByIdAndUpdate(staffId, { $pull: { labs: labId } });
+
+    return sendSuccess(res, 201, "Staff Removed from lab successfully.", {});
+  } catch (error) {
+    console.log(error);
+    return sendError(res, 500, "Server error while removing staff.");
+  }
+});
 
 /**
  * @route DELETE /admin/labs/:labId/staffs/:staffId
