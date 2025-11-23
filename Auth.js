@@ -21,7 +21,7 @@ auth_router.put("/login_with_token", async (req, res) => {
   if (!payload) {
     return res.clearCookie("access_token", cookieOptions).status(200).send({
       success: false,
-      message: "Operation Failed",
+      message: "Token verification failure",
       data: {},
     });
   }
@@ -32,7 +32,7 @@ auth_router.put("/login_with_token", async (req, res) => {
     if (!foundToken) {
       return res.clearCookie("access_token", cookieOptions).status(200).send({
         success: false,
-        message: "Operation Failed",
+        message: "Token is Expired",
         data: {},
       });
     }
@@ -41,17 +41,13 @@ auth_router.put("/login_with_token", async (req, res) => {
     if (!user) {
       return res.clearCookie("access_token", cookieOptions).status(200).send({
         success: false,
-        message: "Operation Failed",
+        message: "No User Found",
         data: {},
       });
     }
 
     printConsumedTime(req, "Get User ---");
-    return sendSuccess(res, 200, "Token valid.", {
-      name: user.name,
-      email: user.email_address,
-      role: user.role,
-    });
+    return sendSuccess(res, 200, "Token valid.", user);
   } catch (err) {
     return sendError(res, 500, "Server error while validating token.");
   }
