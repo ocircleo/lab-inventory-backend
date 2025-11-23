@@ -5,8 +5,7 @@ const ItemSchema = new mongoose.Schema(
     name: { type: String, required: true },
     category: { type: String, required: true },
     templateId: { type: mongoose.Schema.Types.ObjectId, ref: "Templates" },
-    majorComponent: { type: Object },
-    minorDescription: { type: String },
+    majorComponents: { type: Array, default: [] },
     currentState: {
       type: String,
       enum: [
@@ -26,3 +25,4 @@ const ItemSchema = new mongoose.Schema(
 );
 const Items = mongoose.model("Items", ItemSchema);
 module.exports = Items;
+//{name:string,category:templateId:majorComponents:[],labId:}

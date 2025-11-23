@@ -6,6 +6,7 @@ const { sendSuccess, sendError } = require("../utls/ReturnFunctations");
 const Logs = require("../Models/Logs");
 const { printConsumedTime } = require("../utls/RequestTimeInfo");
 const Templates = require("../Models/Templates");
+const Items = require("../Models/Items");
 
 const admin_router = express.Router();
 
@@ -20,7 +21,6 @@ admin_router.post("/add-template", isUserAdmin, async (req, res) => {
   try {
     let { category, dataModel } = req.body.data;
     const id = req.user.id;
-    console.log(id);
     if (!category) {
       return sendError(res, 400, "Template are required.");
     }
@@ -53,7 +53,7 @@ admin_router.post("/add-template", isUserAdmin, async (req, res) => {
 admin_router.put("/update-template", isUserAdmin, async (req, res) => {
   try {
     let { id, data } = req.body;
-    console.log({ id, data });
+
     const result = await Templates.findByIdAndUpdate(
       id,
       {
@@ -276,10 +276,10 @@ admin_router.delete("/labs/:labId", isUserAdmin, async (req, res) => {
  * @description Create a new device/item
  * @access Private (Admin only)
  */
-admin_router.post("/devices", isUserAdmin, async (req, res) => {
+admin_router.post("/addDevice", isUserAdmin, async (req, res) => {
   try {
-    const { name, category, labId, majorComponent, minorDescription } =
-      req.body;
+    const { name, category, labId, majorComponents } = req.body;
+    
 
     if (!name || !category || !labId) {
       return sendError(
@@ -289,23 +289,20 @@ admin_router.post("/devices", isUserAdmin, async (req, res) => {
       );
     }
 
-    const Items = require("../Models/Items");
     const newItem = new Items({
       name,
       category,
       labId,
-      majorComponent: majorComponent || {},
-      minorDescription,
+      majorComponents: majorComponents,
       createdBy: req.user._id,
       currentState: "working",
     });
 
-    await newItem.save();
+     await newItem.save();
 
     // Add item to lab's items array
     await Labs.findByIdAndUpdate(labId, { $addToSet: { items: newItem._id } });
 
-    printConsumedTime(req, "Create Device ---");
     return sendSuccess(res, 201, "Device created successfully.", {
       deviceId: newItem._id,
       name: newItem.name,
@@ -572,8 +569,6 @@ admin_router.put("/assignStaff", isUserAdmin, async (req, res) => {
 
     // Verify staff user exists and has staff role
     const staffUser = await Users.findById(staffId);
-    console.log(staffUser?.role != "staff");
-    console.log(staffUser);
     if (!staffUser) return sendError(res, 404, "No User Found");
     else if (staffUser?.role != "staff")
       return sendError(res, 403, "user-not-staff");
