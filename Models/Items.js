@@ -3,19 +3,11 @@ const mongoose = require("mongoose");
 const ItemSchema = new mongoose.Schema(
   {
     name: { type: String, required: true },
-    category: { type: String, required: true },
-    templateId: { type: mongoose.Schema.Types.ObjectId, ref: "Templates" },
+    category: { type: String, required: true, default: "computer" },
     majorComponents: { type: Array, default: [] },
     currentState: {
       type: String,
-      enum: [
-        "working",
-        "broken",
-        "under_maintenance",
-        "repaired",
-        " replaced",
-        "transferred",
-      ],
+      enum: ["working", "broken", "under_maintenance"],
       default: "working",
     },
     createdBy: { type: mongoose.Schema.Types.ObjectId, ref: "Users" },

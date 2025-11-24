@@ -144,104 +144,6 @@ admin_router.put("/update-lab", isUserAdmin, async (req, res) => {
     return sendError(res, 500, "Server error while creating lab.");
   }
 });
-
-/**
- * @route GET /admin/labs
- * @description Get all labs
- * @access Private (Admin only)
- * @query page: number, limit: number
- */
-admin_router.get("/labs", isUserAdmin, async (req, res) => {
-  try {
-    const page = parseInt(req.query.page) || 1;
-    const limit = parseInt(req.query.limit) || 10;
-    const skip = (page - 1) * limit;
-
-    const labs = await Labs.find()
-      .populate("admins", "name email_address")
-      .populate("staffs", "name email_address")
-      .populate("items")
-      .skip(skip)
-      .limit(limit);
-
-    const total = await Labs.countDocuments();
-
-    printConsumedTime(req, "Get Labs ---");
-    return sendSuccess(res, 200, "Labs retrieved successfully.", {
-      labs,
-      pagination: {
-        total,
-        page,
-        limit,
-        pages: Math.ceil(total / limit),
-      },
-    });
-  } catch (error) {
-    console.log(error);
-    return sendError(res, 500, "Server error while retrieving labs.");
-  }
-});
-
-/**
- * @route GET /admin/labs/:labId
- * @description Get specific lab details
- * @access Private (Admin only)
- */
-admin_router.get("/labs/:labId", isUserAdmin, async (req, res) => {
-  try {
-    const { labId } = req.params;
-
-    const lab = await Labs.findById(labId)
-      .populate("admins", "name email_address")
-      .populate("staffs", "name email_address")
-      .populate("items");
-
-    if (!lab) {
-      return sendError(res, 404, "Lab not found.");
-    }
-
-    printConsumedTime(req, "Get Lab Details ---");
-    return sendSuccess(res, 200, "Lab details retrieved successfully.", lab);
-  } catch (error) {
-    console.log(error);
-    return sendError(res, 500, "Server error while retrieving lab.");
-  }
-});
-
-/**
- * @route PUT /admin/labs/:labId
- * @description Update lab details
- * @access Private (Admin only)
- */
-admin_router.put("/labs/:labId", isUserAdmin, async (req, res) => {
-  try {
-    const { labId } = req.params;
-    const { name, type, dept } = req.body;
-
-    const updateData = {};
-    if (name) updateData.name = name;
-    if (type) updateData.type = type;
-    if (dept) updateData.dept = dept;
-
-    const updatedLab = await Labs.findByIdAndUpdate(labId, updateData, {
-      new: true,
-    })
-      .populate("admins", "name email_address")
-      .populate("staffs", "name email_address")
-      .populate("items");
-
-    if (!updatedLab) {
-      return sendError(res, 404, "Lab not found.");
-    }
-
-    printConsumedTime(req, "Update Lab ---");
-    return sendSuccess(res, 200, "Lab updated successfully.", updatedLab);
-  } catch (error) {
-    console.log(error);
-    return sendError(res, 500, "Server error while updating lab.");
-  }
-});
-
 /**
  * @route DELETE /admin/labs/:labId
  * @description Delete a lab
@@ -279,7 +181,6 @@ admin_router.delete("/labs/:labId", isUserAdmin, async (req, res) => {
 admin_router.post("/addDevice", isUserAdmin, async (req, res) => {
   try {
     const { name, category, labId, majorComponents } = req.body;
-    
 
     if (!name || !category || !labId) {
       return sendError(
@@ -298,7 +199,7 @@ admin_router.post("/addDevice", isUserAdmin, async (req, res) => {
       currentState: "working",
     });
 
-     await newItem.save();
+    await newItem.save();
 
     // Add item to lab's items array
     await Labs.findByIdAndUpdate(labId, { $addToSet: { items: newItem._id } });
@@ -314,142 +215,40 @@ admin_router.post("/addDevice", isUserAdmin, async (req, res) => {
     return sendError(res, 500, "Server error while creating device.");
   }
 });
-
-/**
- * @route GET /admin/devices
- * @description Get all devices/items
- * @access Private (Admin only)
- * @query page: number, limit: number
- */
-admin_router.get("/devices", isUserAdmin, async (req, res) => {
+admin_router.post("/updateDevice", isUserAdmin, async (req, res) => {
   try {
-    const page = parseInt(req.query.page) || 1;
-    const limit = parseInt(req.query.limit) || 10;
-    const skip = (page - 1) * limit;
+    const { name, category, majorComponents, labId } = req.body;
 
-    const Items = require("../Models/Items");
-    const items = await Items.find()
-      .populate("labId", "name type dept")
-      .populate("createdBy", "name email_address")
-      .skip(skip)
-      .limit(limit);
+    if (!name || !category || !labId) {
+      return sendError(
+        res,
+        400,
+        "Device name, category, and lab are required."
+      );
+    }
 
-    const total = await Items.countDocuments();
+    const newItem = {
+      name,
+      category,
+      majorComponents: majorComponents,
+    };
 
-    printConsumedTime(req, "Get Devices ---");
-    return sendSuccess(res, 200, "Devices retrieved successfully.", {
-      items,
-      pagination: {
-        total,
-        page,
-        limit,
-        pages: Math.ceil(total / limit),
-      },
+    await Items.findByIdAndUpdate(labId, newItem).save();
+
+    // Add item to lab's items array
+
+    return sendSuccess(res, 201, "Device Updated successfully.", {
+      deviceId: newItem._id,
+      name: newItem.name,
+      category: newItem.category,
+      status: newItem.currentState,
     });
   } catch (error) {
     console.log(error);
-    return sendError(res, 500, "Server error while retrieving devices.");
+    return sendError(res, 500, "Server error while creating device.");
   }
 });
 
-/**
- * @route GET /admin/devices/:deviceId
- * @description Get specific device details
- * @access Private (Admin only)
- */
-admin_router.get("/devices/:deviceId", isUserAdmin, async (req, res) => {
-  try {
-    const { deviceId } = req.params;
-
-    const Items = require("../Models/Items");
-    const item = await Items.findById(deviceId)
-      .populate("labId", "name type dept")
-      .populate("createdBy", "name email_address");
-
-    if (!item) {
-      return sendError(res, 404, "Device not found.");
-    }
-
-    printConsumedTime(req, "Get Device Details ---");
-    return sendSuccess(
-      res,
-      200,
-      "Device details retrieved successfully.",
-      item
-    );
-  } catch (error) {
-    console.log(error);
-    return sendError(res, 500, "Server error while retrieving device.");
-  }
-});
-
-/**
- * @route PUT /admin/devices/:deviceId
- * @description Update device details
- * @access Private (Admin only)
- */
-admin_router.put("/devices/:deviceId", isUserAdmin, async (req, res) => {
-  try {
-    const { deviceId } = req.params;
-    const { name, category, majorComponent, minorDescription } = req.body;
-
-    const updateData = {};
-    if (name) updateData.name = name;
-    if (category) updateData.category = category;
-    if (majorComponent) updateData.majorComponent = majorComponent;
-    if (minorDescription) updateData.minorDescription = minorDescription;
-
-    const Items = require("../Models/Items");
-    const updatedItem = await Items.findByIdAndUpdate(deviceId, updateData, {
-      new: true,
-    })
-      .populate("labId", "name type dept")
-      .populate("createdBy", "name email_address");
-
-    if (!updatedItem) {
-      return sendError(res, 404, "Device not found.");
-    }
-
-    printConsumedTime(req, "Update Device ---");
-    return sendSuccess(res, 200, "Device updated successfully.", updatedItem);
-  } catch (error) {
-    console.log(error);
-    return sendError(res, 500, "Server error while updating device.");
-  }
-});
-
-/**
- * @route DELETE /admin/devices/:deviceId
- * @description Delete a device/item
- * @access Private (Admin only)
- */
-admin_router.delete("/devices/:deviceId", isUserAdmin, async (req, res) => {
-  try {
-    const { deviceId } = req.params;
-
-    const Items = require("../Models/Items");
-    const item = await Items.findByIdAndDelete(deviceId);
-
-    if (!item) {
-      return sendError(res, 404, "Device not found.");
-    }
-
-    // Remove item from lab's items array
-    if (item.labId) {
-      await Labs.findByIdAndUpdate(item.labId, {
-        $pull: { items: deviceId },
-      });
-    }
-
-    printConsumedTime(req, "Delete Device ---");
-    return sendSuccess(res, 200, "Device deleted successfully.", {
-      deviceId: item._id,
-    });
-  } catch (error) {
-    console.log(error);
-    return sendError(res, 500, "Server error while deleting device.");
-  }
-});
 
 // ============ LOG MANAGEMENT ============
 

@@ -10,7 +10,7 @@ auth_router.put("/login_with_token", async (req, res) => {
     httpOnly: true,
     secure: prodMode,
     sameSite: prodMode ? "none" : "lax",
-    domain: domain,
+    path: "/",
   };
 
   const token = req.body.token;
@@ -57,7 +57,7 @@ auth_router.put("/login_with_cookie", async (req, res) => {
     httpOnly: true,
     secure: prodMode,
     sameSite: prodMode ? "none" : "lax",
-    domain: domain,
+    path: "/",
   };
 
   const token = req.cookies.access_token;
@@ -135,7 +135,7 @@ auth_router.put("/login", async (req, res) => {
       httpOnly: true,
       secure: prodMode,
       sameSite: prodMode ? "none" : "lax",
-      domain: domain,
+      path: "/",
     };
 
     if (remember)
@@ -197,7 +197,7 @@ auth_router.post("/register", async (req, res) => {
       httpOnly: true,
       secure: prodMode,
       sameSite: prodMode ? "none" : "lax",
-      domain: domain,
+      path: "/",
       expires: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
     };
 
@@ -226,7 +226,7 @@ auth_router.delete("/logout", async (req, res) => {
       httpOnly: true,
       secure: prodMode,
       sameSite: prodMode ? "none" : "lax",
-      domain: domain,
+      path: "/",
     };
     const token = req.cookies.access_token;
     if (!token) {

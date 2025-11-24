@@ -18,6 +18,7 @@ const allowedCorsList = [
   "http://192.168.0.101:3000",
   "http://192.168.0.100:3000",
   "http://192.168.0.120:3000",
+  "https://lab-inventory-frontend-orpin.vercel.app",
 ];
 server.use(
   cors({
