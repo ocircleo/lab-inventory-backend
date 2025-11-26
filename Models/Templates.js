@@ -3,7 +3,9 @@ const TemplateSchema = new mongoose.Schema(
   {
     category: { type: String, required: true, unique: true },
     createdBy: { type: mongoose.Schema.Types.ObjectId, ref: "Users" },
-    dataModel: { type: Array, required: true },
+    componentList: { type: Array, default: [], ref: "components" },
+    deviceList: { type: Array, default: [], ref: "items" },
+    dataList: { type: Array, default: [] },
   },
   { timestamps: true }
 );

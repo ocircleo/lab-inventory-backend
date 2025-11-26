@@ -7,6 +7,7 @@ const Logs = require("../Models/Logs");
 const { printConsumedTime } = require("../utls/RequestTimeInfo");
 const Templates = require("../Models/Templates");
 const Items = require("../Models/Items");
+const Components = require("../Models/Component");
 
 const admin_router = express.Router();
 
@@ -20,25 +21,44 @@ const admin_router = express.Router();
 admin_router.post("/add-template", isUserAdmin, async (req, res) => {
   try {
     let { category, dataModel } = req.body.data;
-    const id = req.user.id;
+    const userId = req.user.id;
+
     if (!category) {
       return sendError(res, 400, "Template are required.");
     }
-    category = category.toLowerCase();
-    const templateValidate = await Templates.find({ category: category });
-    if (templateValidate.length > 0)
-      return res.send({
-        success: false,
-        message: "Category name already exists",
-      });
-
-    const newTemplate = new Templates({
-      category,
-      createdBy: id,
-      dataModel,
+    let componentList = dataModel.filter((ele) => ele.type == "component");
+    let deviceList = dataModel.filter((ele) => ele.type == "device");
+    let dataList = dataModel.filter((ele) => ele.type == "data");
+    componentList = componentList.map((ele) => ({
+      name: ele.key,
+      id: ele.id,
+      key: ele.key,
+      value: ele.value,
+      category: ele.type,
+      dataType: ele.dataType,
+      createdBy: userId,
+    }));
+    deviceList = deviceList.map((ele) => ({
+      name: ele.value,
+      category: ele.key,
+      createdBy: userId,
+    }));
+    const componentBulkSave = await Components.insertMany(componentList, {
+      ordered: true,
     });
-
-    const result = await newTemplate.save();
+    const devicesBulkSave = await Items.insertMany(deviceList, {
+      ordered: true,
+    });
+    let componentIds = componentBulkSave.map((ele) => ele._id);
+    let deviceIds = devicesBulkSave.map((ele) => ele._id);
+    let newItem = new Templates({
+      category: category,
+      createdBy: userId,
+      componentList: componentIds,
+      deviceList: deviceIds,
+      dataList: dataList,
+    });
+    const result = await newItem.save();
     return sendSuccess(res, 201, "Template created successfully.", result);
   } catch (error) {
     console.log(error);
@@ -249,7 +269,6 @@ admin_router.post("/updateDevice", isUserAdmin, async (req, res) => {
   }
 });
 
-
 // ============ LOG MANAGEMENT ============
 
 /**
@@ -362,6 +381,40 @@ admin_router.put("/makeStaff", isUserAdmin, async (req, res) => {
     return sendError(res, 500, "Server error while adding staff.");
   }
 });
+admin_router.put("/deleteStaff", isUserAdmin, async (req, res) => {
+  try {
+    const { staffId } = req.body;
+
+    // Verify staff user exists and does not has staff or admin role
+    const staffUser = await Users.findById(staffId);
+
+    if (!staffUser) return sendError(res, 404, "No User Found");
+    else if (staffUser.role != "staff") {
+      return sendError(res, 401, "The user is not a Staff ");
+    } else if (staffUser.role == "admin") {
+      return sendError(res, 401, "You Cant remove an Admin");
+    }
+    let staffsLabs = staffUser.labs;
+
+    const result = await Users.findByIdAndUpdate(
+      staffId,
+      { role: "user", labs: [] },
+      { new: true }
+    );
+    if (!result) return sendError(res, 404, "Some Error happened ");
+    sendSuccess(res, 201, "Staff removed from  lab successfully.", staffUser);
+    for (let labId of staffsLabs) {
+      let temResult = await Labs.findOneAndUpdate(
+        { _id: labId, staffs: { $eq: staffId } },
+        { $pull: { staffs: staffId } },
+        { new: true }
+      );
+    }
+  } catch (error) {
+    console.log(error);
+    return sendError(res, 500, "Server error while adding staff.");
+  }
+});
 admin_router.put("/assignStaff", isUserAdmin, async (req, res) => {
   try {
     const { labId, staffId } = req.body;
@@ -459,3 +512,6 @@ admin_router.delete(
 );
 
 module.exports = { admin_router };
+async function newFunction() {
+  return await newTemplate.save();
+}

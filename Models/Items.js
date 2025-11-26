@@ -4,7 +4,9 @@ const ItemSchema = new mongoose.Schema(
   {
     name: { type: String, required: true },
     category: { type: String, required: true, default: "computer" },
-    majorComponents: { type: Array, default: [] },
+    componentList: { type: Array, default: [], ref: "components" },
+    deviceList: { type: Array, default: [], ref: "items" },
+    dataList: { type: Array, default: [] },
     currentState: {
       type: String,
       enum: ["working", "broken", "under_maintenance"],

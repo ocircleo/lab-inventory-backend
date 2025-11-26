@@ -180,7 +180,28 @@ common_router.get("/labs/:labId", isUsersRegistered, async (req, res) => {
     return sendError(res, 500, "Server error while retrieving devices.");
   }
 });
-common_router.get("/searchLab", async (req, res) => {
+common_router.get("/staffLabs", isUsersRegistered, async (req, res) => {
+  try {
+    let user = req.user;
+    console.log(user);
+    const staffsLabs = await Users.findById(user._id).populate("labs");
+    console.log(staffsLabs);
+    let result = staffsLabs.labs || [];
+    res.send({
+      success: true,
+      message: "Hare is the search Result",
+      data: result,
+    });
+  } catch (error) {
+    console.log(error);
+    res.send({
+      success: false,
+      data: [],
+      message: "Server error occurred",
+    });
+  }
+});
+common_router.get("/searchLab", isUsersRegistered, async (req, res) => {
   const name = req.query.lab || "";
   try {
     let result = await Labs.find({
@@ -196,6 +217,45 @@ common_router.get("/searchLab", async (req, res) => {
     });
   } catch (error) {
     console.log(error);
+    res.send({
+      success: false,
+      data: [],
+      message: "Server error occurred",
+    });
+  }
+});
+common_router.get("/searchUserWithFilter", async (req, res) => {
+  const email = req.query.user || "@all";
+  const roleFilter = req.query.role || "@all";
+
+  try {
+    let result;
+
+    if (roleFilter.startsWith("@all")) {
+      if (email.startsWith("@all")) {
+        result = await Users.find();
+      } else {
+        result = await Users.find({
+          email_address: { $regex: email, $options: "i" },
+        });
+      }
+    } else {
+      if (email.startsWith("@all")) {
+        result = await Users.find({ role: roleFilter });
+      } else {
+        result = await Users.find({
+          email_address: { $regex: email, $options: "i" },
+          role: roleFilter,
+        });
+      }
+    }
+
+    res.send({
+      success: true,
+      message: "Hare is the search Result",
+      data: result || [],
+    });
+  } catch (error) {
     res.send({
       success: false,
       data: [],
