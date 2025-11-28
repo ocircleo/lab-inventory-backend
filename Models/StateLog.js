@@ -2,16 +2,14 @@ const mongoose = require("mongoose");
 
 const LogsSchema = new mongoose.Schema(
   {
-    moveTo: String,
-    moveToId: String,
-    moveFrom: String,
-    moveFromId: String,
+    itemId: String,
     itemType: String,
-    itemId: Array,
+    operation: String,
+    message: String,
     userId: { type: mongoose.Schema.ObjectId, ref: "Users" },
   },
   { timestamps: true }
 );
 
-const Logs = mongoose.model("Logs", LogsSchema);
-module.exports = Logs;
+const StateLogs = mongoose.model("StateLogs", LogsSchema);
+module.exports = StateLogs;

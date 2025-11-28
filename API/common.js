@@ -9,6 +9,8 @@ const Items = require("../Models/Items");
 const Delay = require("../utls/Delay");
 const Templates = require("../Models/Templates");
 const { default: mongoose } = require("mongoose");
+const Components = require("../Models/Component");
+const StateLogs = require("../Models/StateLog");
 const common_router = express.Router();
 
 // ============ PROFILE MANAGEMENT ============
@@ -209,23 +211,41 @@ common_router.get("/staffLabs", isUsersRegistered, async (req, res) => {
 });
 common_router.get("/searchLabToInsert", isUsersRegistered, async (req, res) => {
   const name = req.query.lab || "";
+  const role = req.user.role;
   try {
-    let result = await Labs.find({
+    let query = {
       name: { $regex: name, $options: "i" },
-    }).populate({
+    };
+
+    if (role === "staff") {
+      query.staffs = req.user.id;
+    }
+
+    let result = await Labs.find(query).populate({
       path: "items",
       populate: {
         path: "deviceList",
       },
     });
-    if (result && result.length == 0)
-      if (name.startsWith("@all"))
+
+    // If no result found
+    if (result.length === 0 && name.startsWith("@all")) {
+      if (role === "staff") {
+        result = await Labs.find({ staffs: req.user.id }).populate({
+          path: "items",
+          populate: {
+            path: "deviceList",
+          },
+        });
+      } else {
         result = await Labs.find().populate({
           path: "items",
           populate: {
             path: "deviceList",
           },
         });
+      }
+    }
 
     res.send({
       success: true,
@@ -394,9 +414,11 @@ common_router.get("/template-by-id/:id", async (req, res) => {
 });
 common_router.put("/move-items", isUsersRegistered, async (req, res) => {
   try {
+    const uId = req.user.id;
+
     const { moveFrom, moveTo, item } = req.body;
     let ids = Array.isArray(item.id) ? item.id : [item.id];
-    
+
     if (moveFrom.id == moveTo.id) {
       return sendError(res, 400, "Cannot move items to the same location.");
     }
@@ -440,7 +462,6 @@ common_router.put("/move-items", isUsersRegistered, async (req, res) => {
       },
       { new: true }
     );
-    
 
     const pushResult = await ToModel.findByIdAndUpdate(
       moveTo.id,
@@ -450,72 +471,131 @@ common_router.put("/move-items", isUsersRegistered, async (req, res) => {
       { new: true }
     );
     // 4. Final response
-    return sendSuccess(res, 200, "Items moved successfully.");
+    sendSuccess(res, 200, "Items moved successfully.");
+    // 5. Create move log
+    moveLogs(req.body, uId);
   } catch (error) {
     console.log(error);
     sendError(res, 500, "Server error while performing move operation.");
   }
 });
+common_router.get("/logs", async (req, res) => {
+  try {
+    const { page = 1, limit = 20 } = req.query;
 
+    const logs = await Logs.find()
+      .sort({ createdAt: -1 })
+      .skip((page - 1) * limit)
+      .limit(parseInt(limit));
+    const totalItems = await Logs.find().countDocuments();
+    return sendSuccess(res, 200, "Logs retrieved successfully.", {
+      data: logs,
+      totalItems: totalItems,
+    });
+  } catch (error) {
+    console.log(error);
+    sendError(res, 500, "Server error while retrieving logs.");
+  }
+});
+common_router.get("/logs/:id", async (req, res) => {
+  try {
+    const id = req.params.id;
+
+    const logs = await Logs.findById(id);
+
+    return sendSuccess(res, 200, "Logs retrieved successfully.", logs);
+  } catch (error) {
+    console.log(error);
+    sendError(res, 500, "Server error while retrieving logs.");
+  }
+});
+common_router.get("/items/:itemId", async (req, res) => {
+  try {
+    const id = req.params.itemId;
+    const result = await Items.findById(id).select(
+      "name  value category currentState"
+    );
+    sendSuccess(res, 201, "found data", result);
+  } catch (error) {
+    console.log(error);
+    sendError(res, 500, "Server error while retrieving logs.");
+  }
+});
+common_router.get("/components/:componentId", async (req, res) => {
+  try {
+    const id = req.params.componentId;
+    const result = await Components.findById(id).select(
+      "name key  value category currentState"
+    );
+    sendSuccess(res, 201, "found data", result);
+  } catch (error) {
+    console.log(error);
+    sendError(res, 500, "Server error while retrieving logs.");
+  }
+});
+common_router.get("/singleLab/:labId", async (req, res) => {
+  try {
+    const id = req.params.labId;
+    const result = await Labs.findById(id).select("name type dept");
+    sendSuccess(res, 201, "found data", result);
+  } catch (error) {
+    console.log(error);
+    sendError(res, 500, "Server error while retrieving logs.");
+  }
+});
+common_router.get("/user/:userId", async (req, res) => {
+  try {
+    const id = req.params.userId;
+    const result = await Users.findById(id).select("name role");
+    sendSuccess(res, 201, "found data", result);
+  } catch (error) {
+    console.log(error);
+    sendError(res, 500, "Server error while retrieving logs.");
+  }
+});
 /**
  * @route PUT /common/devices/:deviceId/mark-status
  * @description Mark device as broken/repaired/replaced/transferred
  * @access Private
  */
-common_router.put(
-  "/devices/:deviceId/mark-status",
-  isUsersRegistered,
-  async (req, res) => {
-    try {
-      const { deviceId } = req.params;
-      const { status, type, message } = req.body;
+common_router.put("/updateStateLog", isUsersRegistered, async (req, res) => {
+  try {
+    const { status, itemId, itemType } = req.body;
 
-      // Validate status
-      const validStatuses = [
-        "broken",
-        "repaired",
-        "replaced",
-        "transferred",
-        "under_maintenance",
-      ];
-      const validType = ["whole", "partial", "component"];
-      if (!validStatuses.includes(status)) {
-        status = validStatuses[0];
-      }
-      if (!validType.includes(type)) {
-        type = validType[0];
-      }
+    // Validate status
+    const validStatuses = ["working", "broken", "under_maintenance"];
 
-      const device = await Items.findById(deviceId);
-      if (!device) {
-        return sendError(res, 404, "Device not found.");
-      }
-
-      // Update device status
-      device.currentState = status;
-      await device.save();
-
-      // Create log entry
-      const log = new Logs({
-        itemId: deviceId,
-        operation: status,
-        message: message || `Device marked as ${status}`,
-        userId: req.user._id,
-        type: type,
-      });
-      await log.save();
-
-      return sendSuccess(res, 200, "Device status updated successfully.", {
-        deviceId: device._id,
-        status: device.currentState,
-        logId: log._id,
-      });
-    } catch (error) {
-      console.log(error);
-      return sendError(res, 500, "Server error while updating device status.");
+    if (!validStatuses.includes(status)) {
+      status = validStatuses[0];
     }
+    let device;
+    if (itemType == "item")
+      device = await Items.findByIdAndUpdate(itemId, {
+        currentState: status,
+      });
+    else
+      device = await Components.findByIdAndUpdate(itemId, {
+        currentState: status,
+      });
+    if (!device) {
+      return sendError(res, 404, "Device not found.");
+    }
+    sendSuccess(res, 200, "Device status updated successfully.", {});
+
+    // Create log entry
+    const log = new StateLogs({
+      itemId: itemId,
+      itemType: itemType,
+      operation: status,
+      message: `Device marked as ${status}`,
+      userId: req.user._id,
+    });
+    await log.save();
+  } catch (error) {
+    console.log(error);
+    return sendError(res, 500, "Server error while updating device status.");
   }
-);
+});
 
 common_router.get("/delay", async (req, res) => {
   const delay = parseInt(req?.query?.delay || 1000);
@@ -541,4 +621,81 @@ common_router.post("/delay", async (req, res) => {
     return res.send({ success: false, message: "DElay api message" });
   else return res.send({ success: true, message: "DElay api success message" });
 });
+common_router.get("/countUsers", async (req, res) => {
+  try {
+    const role = req.query.role;
+    let result;
+    if (role == "all") result = await Users.countDocuments();
+    else result = await Users.countDocuments({ role: role });
+
+    return sendSuccess(res, 200, "Logs retrieved successfully.", {
+      total: result,
+    });
+  } catch (error) {
+    console.log(error);
+    sendError(res, 500, "Server error while retrieving logs.");
+  }
+});
+common_router.get("/countItems", async (req, res) => {
+  try {
+    const state = req.query.currentState;
+    let result;
+    if (state == "all") result = await Items.countDocuments();
+    else result = await Items.countDocuments({ currentState: state });
+
+    return sendSuccess(res, 200, "Logs retrieved successfully.", {
+      total: result,
+    });
+  } catch (error) {
+    console.log(error);
+    sendError(res, 500, "Server error while retrieving logs.");
+  }
+});
+common_router.get("/countComponents", async (req, res) => {
+  try {
+    const state = req.query.currentState;
+    let result;
+    if (type == "all") result = await Components.countDocuments();
+    else result = await Components.countDocuments({ currentState: state });
+
+    return sendSuccess(res, 200, "Logs retrieved successfully.", {
+      total: result,
+    });
+  } catch (error) {
+    console.log(error);
+    sendError(res, 500, "Server error while retrieving logs.");
+  }
+});
+common_router.get("/countLabs", async (req, res) => {
+  try {
+    let result = await Labs.countDocuments();
+
+    return sendSuccess(res, 200, "Logs retrieved successfully.", {
+      total: result,
+    });
+  } catch (error) {
+    console.log(error);
+    sendError(res, 500, "Server error while retrieving logs.");
+  }
+});
+
 module.exports = { common_router };
+
+async function moveLogs(data, id) {
+  try {
+    const { moveTo, moveFrom, item } = data;
+    const newLog = new Logs({
+      moveTo: moveTo.type,
+      moveToId: moveTo.id,
+      moveFrom: moveFrom.type,
+      moveFromId: moveFrom.id,
+      itemType: item.type,
+      itemId: item.id,
+      userId: id,
+    });
+    const result = await newLog.save();
+    console.log(result);
+  } catch (error) {
+    console.log(error);
+  }
+}

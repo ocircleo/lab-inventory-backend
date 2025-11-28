@@ -3,8 +3,11 @@ const mongoose = require("mongoose");
 const ItemSchema = new mongoose.Schema(
   {
     name: { type: String, required: true },
+    value: { type: String, default: "" },
     category: { type: String, required: true, default: "item" },
-    componentList: [{ type: mongoose.Schema.Types.ObjectId, ref: "Components" }],
+    componentList: [
+      { type: mongoose.Schema.Types.ObjectId, ref: "Components" },
+    ],
     deviceList: [{ type: mongoose.Schema.Types.ObjectId, ref: "Items" }],
     dataList: { type: Array, default: [] },
     currentState: {
@@ -19,4 +22,3 @@ const ItemSchema = new mongoose.Schema(
 );
 const Items = mongoose.model("Items", ItemSchema);
 module.exports = Items;
-

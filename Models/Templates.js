@@ -1,7 +1,6 @@
 const mongoose = require("mongoose");
 const TemplateSchema = new mongoose.Schema(
   {
-    category: { type: String, required: true, unique: true },
     createdBy: { type: mongoose.Schema.Types.ObjectId, ref: "Users" },
     dataModel: { type: Array, required: true },
   },

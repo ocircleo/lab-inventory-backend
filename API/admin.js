@@ -180,7 +180,7 @@ admin_router.delete("/labs/:labId", isUserAdmin, async (req, res) => {
  * @access Private (Admin only)
  */
 admin_router.post("/addDevice", isUserAdmin, async (req, res) => {
- try {
+  try {
     const { name, category, labId, majorComponents } = req.body;
     const userId = req.user.id;
     if (!name || !category || !labId) {
@@ -200,13 +200,14 @@ admin_router.post("/addDevice", isUserAdmin, async (req, res) => {
       id: ele.id,
       key: ele.key,
       value: ele.value,
-      category: ele.type,
+      category: "component",
       dataType: ele.dataType,
       createdBy: userId,
     }));
     deviceList = deviceList.map((ele) => ({
       name: ele.value,
-      category: ele.key,
+      value: ele.key,
+      category: "item",
       createdBy: userId,
     }));
     const componentBulkSave = await Components.insertMany(componentList, {
@@ -217,7 +218,7 @@ admin_router.post("/addDevice", isUserAdmin, async (req, res) => {
     });
     let componentIds = componentBulkSave.map((ele) => ele._id);
     let deviceIds = devicesBulkSave.map((ele) => ele._id);
- 
+
     const newItem = new Items({
       name,
       category,
@@ -400,8 +401,7 @@ admin_router.put("/deleteStaff", isUserAdmin, async (req, res) => {
     if (!staffUser) return sendError(res, 404, "No User Found");
     else if (staffUser.role != "staff") {
       return sendError(res, 401, "The user is not a Staff ");
-    }
-    else if ( staffUser.role == "admin") {
+    } else if (staffUser.role == "admin") {
       return sendError(res, 401, "You Cant remove an Admin");
     }
     let staffsLabs = staffUser.labs;
