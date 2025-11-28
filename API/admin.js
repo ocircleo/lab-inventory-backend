@@ -21,44 +21,25 @@ const admin_router = express.Router();
 admin_router.post("/add-template", isUserAdmin, async (req, res) => {
   try {
     let { category, dataModel } = req.body.data;
-    const userId = req.user.id;
-
+    const id = req.user.id;
     if (!category) {
       return sendError(res, 400, "Template are required.");
     }
-    let componentList = dataModel.filter((ele) => ele.type == "component");
-    let deviceList = dataModel.filter((ele) => ele.type == "device");
-    let dataList = dataModel.filter((ele) => ele.type == "data");
-    componentList = componentList.map((ele) => ({
-      name: ele.key,
-      id: ele.id,
-      key: ele.key,
-      value: ele.value,
-      category: ele.type,
-      dataType: ele.dataType,
-      createdBy: userId,
-    }));
-    deviceList = deviceList.map((ele) => ({
-      name: ele.value,
-      category: ele.key,
-      createdBy: userId,
-    }));
-    const componentBulkSave = await Components.insertMany(componentList, {
-      ordered: true,
+    category = category.toLowerCase();
+    const templateValidate = await Templates.find({ category: category });
+    if (templateValidate.length > 0)
+      return res.send({
+        success: false,
+        message: "Category name already exists",
+      });
+
+    const newTemplate = new Templates({
+      category,
+      createdBy: id,
+      dataModel,
     });
-    const devicesBulkSave = await Items.insertMany(deviceList, {
-      ordered: true,
-    });
-    let componentIds = componentBulkSave.map((ele) => ele._id);
-    let deviceIds = devicesBulkSave.map((ele) => ele._id);
-    let newItem = new Templates({
-      category: category,
-      createdBy: userId,
-      componentList: componentIds,
-      deviceList: deviceIds,
-      dataList: dataList,
-    });
-    const result = await newItem.save();
+
+    const result = await newTemplate.save();
     return sendSuccess(res, 201, "Template created successfully.", result);
   } catch (error) {
     console.log(error);
@@ -199,9 +180,9 @@ admin_router.delete("/labs/:labId", isUserAdmin, async (req, res) => {
  * @access Private (Admin only)
  */
 admin_router.post("/addDevice", isUserAdmin, async (req, res) => {
-  try {
+ try {
     const { name, category, labId, majorComponents } = req.body;
-
+    const userId = req.user.id;
     if (!name || !category || !labId) {
       return sendError(
         res,
@@ -209,14 +190,42 @@ admin_router.post("/addDevice", isUserAdmin, async (req, res) => {
         "Device name, category, and lab are required."
       );
     }
-
+    let componentList = majorComponents.filter(
+      (ele) => ele.type == "component"
+    );
+    let deviceList = majorComponents.filter((ele) => ele.type == "device");
+    let dataList = majorComponents.filter((ele) => ele.type == "data");
+    componentList = componentList.map((ele) => ({
+      name: ele.key,
+      id: ele.id,
+      key: ele.key,
+      value: ele.value,
+      category: ele.type,
+      dataType: ele.dataType,
+      createdBy: userId,
+    }));
+    deviceList = deviceList.map((ele) => ({
+      name: ele.value,
+      category: ele.key,
+      createdBy: userId,
+    }));
+    const componentBulkSave = await Components.insertMany(componentList, {
+      ordered: true,
+    });
+    const devicesBulkSave = await Items.insertMany(deviceList, {
+      ordered: true,
+    });
+    let componentIds = componentBulkSave.map((ele) => ele._id);
+    let deviceIds = devicesBulkSave.map((ele) => ele._id);
+ 
     const newItem = new Items({
       name,
       category,
       labId,
-      majorComponents: majorComponents,
-      createdBy: req.user._id,
-      currentState: "working",
+      createdBy: userId,
+      componentList: componentIds,
+      deviceList: deviceIds,
+      dataList: dataList,
     });
 
     await newItem.save();
@@ -391,7 +400,8 @@ admin_router.put("/deleteStaff", isUserAdmin, async (req, res) => {
     if (!staffUser) return sendError(res, 404, "No User Found");
     else if (staffUser.role != "staff") {
       return sendError(res, 401, "The user is not a Staff ");
-    } else if (staffUser.role == "admin") {
+    }
+    else if ( staffUser.role == "admin") {
       return sendError(res, 401, "You Cant remove an Admin");
     }
     let staffsLabs = staffUser.labs;
@@ -512,6 +522,3 @@ admin_router.delete(
 );
 
 module.exports = { admin_router };
-async function newFunction() {
-  return await newTemplate.save();
-}

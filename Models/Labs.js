@@ -8,6 +8,7 @@ const LabSchema = new mongoose.Schema(
     admins: [{ type: mongoose.Schema.Types.ObjectId, ref: "Users" }],
     staffs: [{ type: mongoose.Schema.Types.ObjectId, ref: "Users" }],
     items: [{ type: mongoose.Schema.Types.ObjectId, ref: "Items" }],
+    components: [{ type: mongoose.Schema.Types.ObjectId, ref: "Components" }],
   },
   { timestamps: true }
 );

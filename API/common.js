@@ -171,7 +171,13 @@ common_router.get("/labs/:labId", isUsersRegistered, async (req, res) => {
   try {
     const labId = req.params.labId;
     const fullLab = await Labs.findById({ _id: labId })
-      .populate("items")
+      .populate({
+        path: "items",
+        populate: {
+          path: "deviceList componentList dataList",
+        },
+      })
+      .populate("components")
       .populate({ path: "admins", select: "_id name email_address role" })
       .populate({ path: "staffs", select: "_id name email_address role" });
     return sendSuccess(res, 200, "Devices retrieved successfully.", fullLab);
@@ -187,6 +193,40 @@ common_router.get("/staffLabs", isUsersRegistered, async (req, res) => {
     const staffsLabs = await Users.findById(user._id).populate("labs");
     console.log(staffsLabs);
     let result = staffsLabs.labs || [];
+    res.send({
+      success: true,
+      message: "Hare is the search Result",
+      data: result,
+    });
+  } catch (error) {
+    console.log(error);
+    res.send({
+      success: false,
+      data: [],
+      message: "Server error occurred",
+    });
+  }
+});
+common_router.get("/searchLabToInsert", isUsersRegistered, async (req, res) => {
+  const name = req.query.lab || "";
+  try {
+    let result = await Labs.find({
+      name: { $regex: name, $options: "i" },
+    }).populate({
+      path: "items",
+      populate: {
+        path: "deviceList",
+      },
+    });
+    if (result && result.length == 0)
+      if (name.startsWith("@all"))
+        result = await Labs.find().populate({
+          path: "items",
+          populate: {
+            path: "deviceList",
+          },
+        });
+
     res.send({
       success: true,
       message: "Hare is the search Result",
@@ -352,6 +392,71 @@ common_router.get("/template-by-id/:id", async (req, res) => {
     sendError(res, 500, "server error occurred");
   }
 });
+common_router.put("/move-items", isUsersRegistered, async (req, res) => {
+  try {
+    const { moveFrom, moveTo, item } = req.body;
+    let ids = Array.isArray(item.id) ? item.id : [item.id];
+    
+    if (moveFrom.id == moveTo.id) {
+      return sendError(res, 400, "Cannot move items to the same location.");
+    }
+    if (item.id == moveTo.id) {
+      return sendError(res, 400, "Cannot move items into themselves.");
+    }
+    const MODELS = {
+      lab: Labs,
+      item: Items, // if moveto.type can be "item"
+    };
+
+    const FIELD_MAP = {
+      item: {
+        lab: "items", // lab.items
+        item: "deviceList", // device.deviceList
+      },
+      component: {
+        lab: "components", // lab.components
+        item: "componentList", // device.componentList
+      },
+    };
+
+    // Resolve models
+    const FromModel = MODELS[moveFrom.type];
+    const ToModel = MODELS[moveTo.type];
+
+    // Resolve fields to update
+    const fromField = FIELD_MAP[item.type][moveFrom.type];
+    const toField = FIELD_MAP[item.type][moveTo.type];
+
+    // return sendSuccess(res, 200, "Items moved successfully [development].");
+    if (!fromField || !toField) {
+      return sendError(res, 400, "Invalid move operation.");
+    }
+
+    // 3. Execute updates
+    const pullResult = await FromModel.findByIdAndUpdate(
+      moveFrom.id,
+      {
+        $pull: { [fromField]: { $in: ids } },
+      },
+      { new: true }
+    );
+    
+
+    const pushResult = await ToModel.findByIdAndUpdate(
+      moveTo.id,
+      {
+        $push: { [toField]: { $each: ids } },
+      },
+      { new: true }
+    );
+    // 4. Final response
+    return sendSuccess(res, 200, "Items moved successfully.");
+  } catch (error) {
+    console.log(error);
+    sendError(res, 500, "Server error while performing move operation.");
+  }
+});
+
 /**
  * @route PUT /common/devices/:deviceId/mark-status
  * @description Mark device as broken/repaired/replaced/transferred
