@@ -1,5 +1,5 @@
 const express = require("express");
-const { isUsersRegistered } = require("../utls/AuthFunctations");
+const { isUsersRegistered, isUserAdmin } = require("../utls/AuthFunctations");
 const Users = require("../Models/Users");
 const { sendSuccess, sendError } = require("../utls/ReturnFunctations");
 const Logs = require("../Models/Logs");
@@ -11,15 +11,11 @@ const Templates = require("../Models/Templates");
 const { default: mongoose } = require("mongoose");
 const Components = require("../Models/Component");
 const StateLogs = require("../Models/StateLog");
+const Trashes = require("../Models/Trash");
 const common_router = express.Router();
 
 // ============ PROFILE MANAGEMENT ============
 
-/**
- * @route GET /common/profile
- * @description Get current user's profile
- * @access Private
- */
 common_router.get("/profile", isUsersRegistered, async (req, res) => {
   try {
     const user = await Users.findById(req.user._id).populate("labs");
@@ -43,11 +39,6 @@ common_router.get("/profile", isUsersRegistered, async (req, res) => {
   }
 });
 
-/**
- * @route PUT /common/profile
- * @description Update user's profile (name, phone, address)
- * @access Private
- */
 common_router.put("/profile", isUsersRegistered, async (req, res) => {
   try {
     const { name, phone, address } = req.body;
@@ -78,11 +69,6 @@ common_router.put("/profile", isUsersRegistered, async (req, res) => {
   }
 });
 
-/**
- * @route PUT /common/change-password
- * @description Change user's password
- * @access Private
- */
 common_router.put("/change-password", isUsersRegistered, async (req, res) => {
   try {
     const { currentPassword, newPassword, confirmPassword } = req.body;
@@ -124,12 +110,6 @@ common_router.put("/change-password", isUsersRegistered, async (req, res) => {
 
 // ============ DEVICE MANAGEMENT ============
 
-/**
- * @route GET /common/devices
- * @description Get paginated list of devices (user can see their assigned devices)
- * @access Private
- * @query page: number, limit: number
- */
 common_router.get("/labs", isUsersRegistered, async (req, res) => {
   try {
     const dept = req.query?.dept; // dept may be -> null, undefined, "",
@@ -191,9 +171,7 @@ common_router.get("/labs/:labId", isUsersRegistered, async (req, res) => {
 common_router.get("/staffLabs", isUsersRegistered, async (req, res) => {
   try {
     let user = req.user;
-    console.log(user);
     const staffsLabs = await Users.findById(user._id).populate("labs");
-    console.log(staffsLabs);
     let result = staffsLabs.labs || [];
     res.send({
       success: true,
@@ -479,6 +457,67 @@ common_router.put("/move-items", isUsersRegistered, async (req, res) => {
     sendError(res, 500, "Server error while performing move operation.");
   }
 });
+common_router.put("/move-to-trash", isUserAdmin, async (req, res) => {
+  try {
+    const uId = req.user.id;
+
+    const { moveFrom, moveTo, item } = req.body;
+    let ids = Array.isArray(item.id) ? item.id : [item.id];
+
+    const MODELS = {
+      lab: Labs,
+      item: Items, // if moveto.type can be "item"
+    };
+
+    const FIELD_MAP = {
+      item: {
+        lab: "items", // lab.items
+        item: "deviceList", // device.deviceList
+      },
+      component: {
+        lab: "components", // lab.components
+        item: "componentList", // device.componentList
+      },
+    };
+
+    // Resolve models
+    const FromModel = MODELS[moveFrom.type];
+    const ToModel = Trashes;
+
+    // Resolve fields to update
+    const fromField = FIELD_MAP[item.type][moveFrom.type];
+    const toField = item.type == "item" ? "items" : "components";
+
+    // return sendSuccess(res, 200, "Items moved successfully [development].");
+    if (!fromField || !toField) {
+      return sendError(res, 400, "Invalid move operation.");
+    }
+
+    // 3. Execute updates
+    const pullResult = await FromModel.findByIdAndUpdate(
+      moveFrom.id,
+      {
+        $pull: { [fromField]: { $in: ids } },
+      },
+      { new: true }
+    );
+
+    const pushResult = await ToModel.findByIdAndUpdate(
+      moveTo.id,
+      {
+        $push: { [toField]: { $each: ids } },
+      },
+      { new: true }
+    );
+    // 4. Final response
+    sendSuccess(res, 200, "Items moved to trash successfully.");
+    // 5. Create move log
+    moveLogs(req.body, uId);
+  } catch (error) {
+    console.log(error);
+    sendError(res, 500, "Server error while performing move operation.");
+  }
+});
 common_router.get("/logs", async (req, res) => {
   try {
     const { page = 1, limit = 20 } = req.query;
@@ -553,11 +592,9 @@ common_router.get("/user/:userId", async (req, res) => {
     sendError(res, 500, "Server error while retrieving logs.");
   }
 });
-/**
- * @route PUT /common/devices/:deviceId/mark-status
- * @description Mark device as broken/repaired/replaced/transferred
- * @access Private
- */
+
+// ============ ITEM/COMPONENT STATE MANAGEMENT ============
+
 common_router.put("/updateStateLog", isUsersRegistered, async (req, res) => {
   try {
     const { status, itemId, itemType } = req.body;
@@ -597,6 +634,83 @@ common_router.put("/updateStateLog", isUsersRegistered, async (req, res) => {
   }
 });
 
+// ============ COUNT MANAGEMENT ============
+
+common_router.get("/countUsers", async (req, res) => {
+  try {
+    const role = req.query.role;
+    let result;
+    if (role == "all") result = await Users.countDocuments();
+    else result = await Users.countDocuments({ role: role });
+
+    return sendSuccess(res, 200, "Logs retrieved successfully.", {
+      total: result,
+    });
+  } catch (error) {
+    console.log(error);
+    sendError(res, 500, "Server error while retrieving logs.");
+  }
+});
+
+common_router.get("/countItems", async (req, res) => {
+  try {
+    let workingItems = await Items.countDocuments({ currentState: "working" });
+    let brokenItems = await Items.countDocuments({ currentState: "broken" });
+    let under_maintenance = await Items.countDocuments({
+      currentState: "under_maintenance",
+    });
+    let totalItems = workingItems + brokenItems + under_maintenance;
+    return sendSuccess(res, 200, "Items count retrieved successfully.", {
+      totalItems,
+      workingItems,
+      brokenItems,
+      under_maintenance,
+    });
+  } catch (error) {
+    console.log(error);
+    sendError(res, 500, "Server error while retrieving items count.");
+  }
+});
+
+common_router.get("/countComponents", async (req, res) => {
+  try {
+    let workingItems = await Components.countDocuments({
+      currentState: "working",
+    });
+    let brokenItems = await Components.countDocuments({
+      currentState: "broken",
+    });
+    let under_maintenance = await Components.countDocuments({
+      currentState: "under_maintenance",
+    });
+    let totalItems = workingItems + brokenItems + under_maintenance;
+    return sendSuccess(res, 200, "Component count retrieved successfully.", {
+      totalItems,
+      workingItems,
+      brokenItems,
+      under_maintenance,
+    });
+  } catch (error) {
+    console.log(error);
+    sendError(res, 500, "Server error while retrieving count");
+  }
+});
+
+common_router.get("/countLabs", async (req, res) => {
+  try {
+    let result = await Labs.countDocuments();
+
+    return sendSuccess(res, 200, "Logs retrieved successfully.", {
+      total: result,
+    });
+  } catch (error) {
+    console.log(error);
+    sendError(res, 500, "Server error while retrieving logs.");
+  }
+});
+
+// ============ DELAY ============
+
 common_router.get("/delay", async (req, res) => {
   const delay = parseInt(req?.query?.delay || 1000);
   const type = req?.query?.type;
@@ -621,64 +735,19 @@ common_router.post("/delay", async (req, res) => {
     return res.send({ success: false, message: "DElay api message" });
   else return res.send({ success: true, message: "DElay api success message" });
 });
-common_router.get("/countUsers", async (req, res) => {
-  try {
-    const role = req.query.role;
-    let result;
-    if (role == "all") result = await Users.countDocuments();
-    else result = await Users.countDocuments({ role: role });
 
-    return sendSuccess(res, 200, "Logs retrieved successfully.", {
-      total: result,
-    });
+// ============ Trash Management ============
+common_router.get("/create-trash", async (req, res) => {
+  try {
+    return sendSuccess(res, 200, "no longer available");
+    const newTrash = new Trashes({});
+    await newTrash.save();
+    sendSuccess(res, 201, "Successfully Created Trash bin");
   } catch (error) {
     console.log(error);
-    sendError(res, 500, "Server error while retrieving logs.");
+    sendError(res, 501, "Server error in trash");
   }
 });
-common_router.get("/countItems", async (req, res) => {
-  try {
-    const state = req.query.currentState;
-    let result;
-    if (state == "all") result = await Items.countDocuments();
-    else result = await Items.countDocuments({ currentState: state });
-
-    return sendSuccess(res, 200, "Logs retrieved successfully.", {
-      total: result,
-    });
-  } catch (error) {
-    console.log(error);
-    sendError(res, 500, "Server error while retrieving logs.");
-  }
-});
-common_router.get("/countComponents", async (req, res) => {
-  try {
-    const state = req.query.currentState;
-    let result;
-    if (type == "all") result = await Components.countDocuments();
-    else result = await Components.countDocuments({ currentState: state });
-
-    return sendSuccess(res, 200, "Logs retrieved successfully.", {
-      total: result,
-    });
-  } catch (error) {
-    console.log(error);
-    sendError(res, 500, "Server error while retrieving logs.");
-  }
-});
-common_router.get("/countLabs", async (req, res) => {
-  try {
-    let result = await Labs.countDocuments();
-
-    return sendSuccess(res, 200, "Logs retrieved successfully.", {
-      total: result,
-    });
-  } catch (error) {
-    console.log(error);
-    sendError(res, 500, "Server error while retrieving logs.");
-  }
-});
-
 module.exports = { common_router };
 
 async function moveLogs(data, id) {
@@ -694,7 +763,6 @@ async function moveLogs(data, id) {
       userId: id,
     });
     const result = await newLog.save();
-    console.log(result);
   } catch (error) {
     console.log(error);
   }

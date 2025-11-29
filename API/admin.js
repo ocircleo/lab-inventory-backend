@@ -11,13 +11,8 @@ const Components = require("../Models/Component");
 
 const admin_router = express.Router();
 
-// ============ LAB MANAGEMENT ============
+// ============ TEMPLATE MANAGEMENT ============
 
-/**
- * @route POST /admin/add-template
- * @description Create a new Template
- * @access Private (Admin only)
- */
 admin_router.post("/add-template", isUserAdmin, async (req, res) => {
   try {
     let { category, dataModel } = req.body.data;
@@ -46,11 +41,7 @@ admin_router.post("/add-template", isUserAdmin, async (req, res) => {
     return sendError(res, 500, "Server error while creating lab.");
   }
 });
-/**
- * @route PUT /admin/update-template
- * @description update a  Template
- * @access Private (Admin only)
- */
+
 admin_router.put("/update-template", isUserAdmin, async (req, res) => {
   try {
     let { id, data } = req.body;
@@ -69,11 +60,7 @@ admin_router.put("/update-template", isUserAdmin, async (req, res) => {
     return sendError(res, 500, "Server error while creating lab.");
   }
 });
-/**
- * @route Delete /admin/delete-template
- * @description Create a new Template
- * @access Private (Admin only)
- */
+
 admin_router.delete("/delete-template", isUserAdmin, async (req, res) => {
   try {
     let { id } = req.body;
@@ -85,11 +72,9 @@ admin_router.delete("/delete-template", isUserAdmin, async (req, res) => {
     return sendError(res, 500, "Server error while creating lab.");
   }
 });
-/**
- * @route POST /admin/create-lab
- * @description Create a new lab
- * @access Private (Admin only)
- */
+
+// ============ LAB MANAGEMENT ============
+
 admin_router.post("/create-lab", isUserAdmin, async (req, res) => {
   try {
     const { name, type, dept } = req.body;
@@ -118,11 +103,7 @@ admin_router.post("/create-lab", isUserAdmin, async (req, res) => {
     return sendError(res, 500, "Server error while creating lab.");
   }
 });
-/**
- * @route PUT /admin/update-lab
- * @description Update a  lab
- * @access Private (Admin only)
- */
+
 admin_router.put("/update-lab", isUserAdmin, async (req, res) => {
   try {
     const { name, type, dept, id } = req.body;
@@ -145,40 +126,24 @@ admin_router.put("/update-lab", isUserAdmin, async (req, res) => {
     return sendError(res, 500, "Server error while creating lab.");
   }
 });
-/**
- * @route DELETE /admin/labs/:labId
- * @description Delete a lab
- * @access Private (Admin only)
- */
-admin_router.delete("/labs/:labId", isUserAdmin, async (req, res) => {
+admin_router.delete("/deleteLab/:id", isUserAdmin, async (req, res) => {
   try {
-    const { labId } = req.params;
-
-    const lab = await Labs.findByIdAndDelete(labId);
-    if (!lab) {
-      return sendError(res, 404, "Lab not found.");
+    const labId = req.params.id;
+    const labData = await Labs.findById(labId);
+    const totalLength =
+      (labData?.items || []).length + (labData?.components).length;
+    if (totalLength < 1) {
+      await Labs.findByIdAndDelete(labId);
+      return sendSuccess(res, 201, "Lab Deleted");
     }
-
-    // Remove lab from all users
-    await Users.updateMany({ labs: labId }, { $pull: { labs: labId } });
-
-    printConsumedTime(req, "Delete Lab ---");
-    return sendSuccess(res, 200, "Lab deleted successfully.", {
-      labId: lab._id,
-    });
+    return sendSuccess(res, 201, "Cant delete lab, it include 1 or more items");
   } catch (error) {
     console.log(error);
     return sendError(res, 500, "Server error while deleting lab.");
   }
 });
-
 // ============ DEVICE/ITEM MANAGEMENT ============
 
-/**
- * @route POST /admin/devices
- * @description Create a new device/item
- * @access Private (Admin only)
- */
 admin_router.post("/addDevice", isUserAdmin, async (req, res) => {
   try {
     const { name, category, labId, majorComponents } = req.body;
@@ -281,12 +246,6 @@ admin_router.post("/updateDevice", isUserAdmin, async (req, res) => {
 
 // ============ LOG MANAGEMENT ============
 
-/**
- * @route GET /admin/logs
- * @description Get all logs with pagination
- * @access Private (Admin only)
- * @query page: number, limit: number
- */
 admin_router.get("/logs", isUserAdmin, async (req, res) => {
   try {
     const page = parseInt(req.query.page) || 1;
@@ -318,55 +277,8 @@ admin_router.get("/logs", isUserAdmin, async (req, res) => {
   }
 });
 
-/**
- * @route POST /admin/logs/publish
- * @description Publish logs (export/generate report)
- * @access Private (Admin only)
- */
-admin_router.post("/logs/publish", isUserAdmin, async (req, res) => {
-  try {
-    const { format = "json" } = req.body;
-
-    const logs = await Logs.find()
-      .populate("itemId", "name category currentState")
-      .populate("userId", "name email_address role")
-      .sort({ createdAt: -1 });
-
-    if (format === "csv") {
-      // Generate CSV format
-      let csvContent = "ID,Item,Operation,Type,Message,User,Date\n";
-      logs.forEach((log) => {
-        csvContent += `"${log._id}","${log.itemId?.name || "N/A"}","${
-          log.operation
-        }","${log.type}","${log.message || ""}","${
-          log.userId?.name || "N/A"
-        }","${log.createdAt}"\n`;
-      });
-
-      res.setHeader("Content-Type", "text/csv");
-      res.setHeader("Content-Disposition", "attachment; filename=logs.csv");
-      return res.send(csvContent);
-    }
-
-    printConsumedTime(req, "Publish Logs ---");
-    return sendSuccess(res, 200, "Logs published successfully.", {
-      totalRecords: logs.length,
-      logs,
-      publishedAt: new Date(),
-    });
-  } catch (error) {
-    console.log(error);
-    return sendError(res, 500, "Server error while publishing logs.");
-  }
-});
-
 // ============ STAFF MANAGEMENT ============
 
-/**
- * @route POST /admin/labs/:labId/staffs/:staffId
- * @description Add staff to a lab
- * @access Private (Admin only)
- */
 admin_router.put("/makeStaff", isUserAdmin, async (req, res) => {
   try {
     const { staffId } = req.body;
@@ -479,46 +391,5 @@ admin_router.put("/removeStaff", isUserAdmin, async (req, res) => {
     return sendError(res, 500, "Server error while removing staff.");
   }
 });
-
-/**
- * @route DELETE /admin/labs/:labId/staffs/:staffId
- * @description Remove staff from a lab
- * @access Private (Admin only)
- */
-admin_router.delete(
-  "/labs/:labId/staffs/:staffId",
-  isUserAdmin,
-  async (req, res) => {
-    try {
-      const { labId, staffId } = req.params;
-
-      const updatedLab = await Labs.findByIdAndUpdate(
-        labId,
-        { $pull: { staffs: staffId } },
-        { new: true }
-      )
-        .populate("admins", "name email_address")
-        .populate("staffs", "name email_address")
-        .populate("items");
-
-      if (!updatedLab) {
-        return sendError(res, 404, "Lab not found.");
-      }
-
-      // Remove lab from staff's labs array
-      await Users.findByIdAndUpdate(staffId, { $pull: { labs: labId } });
-
-      printConsumedTime(req, "Remove Staff from Lab ---");
-      return sendSuccess(res, 200, "Staff removed from lab successfully.", {
-        labId: updatedLab._id,
-        staffRemoved: staffId,
-        totalStaffs: updatedLab.staffs.length,
-      });
-    } catch (error) {
-      console.log(error);
-      return sendError(res, 500, "Server error while removing staff.");
-    }
-  }
-);
 
 module.exports = { admin_router };

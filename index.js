@@ -11,18 +11,12 @@ const { common_router } = require("./API/common");
 const { admin_router } = require("./API/admin");
 const { staff_router } = require("./API/staff");
 const cookieParser = require("cookie-parser");
+const { ALLOWED_CORS_LIST } = require("./config");
 
 //middleware
-const allowedCorsList = [
-  "http://localhost:3000",
-  "http://192.168.0.101:3000",
-  "http://192.168.0.100:3000",
-  "http://192.168.0.120:3000",
-  "https://lab-inventory-frontend-orpin.vercel.app",
-];
 server.use(
   cors({
-    origin: allowedCorsList,
+    origin: ALLOWED_CORS_LIST,
     credentials: true,
   })
 );

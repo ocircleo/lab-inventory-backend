@@ -2,16 +2,17 @@ const express = require("express");
 const { sendSuccess, sendError } = require("./utls/ReturnFunctations");
 const { generateToken, verifyToken } = require("./utls/JWTFunctions");
 const Token = require("./Models/Token");
-const { prodMode, domain } = require("./modeCofig");
+const { PROD_MODE } = require("./config");
 const auth_router = express.Router();
 //!! Token must be reAssigned after certain period of time
 auth_router.put("/login_with_token", async (req, res) => {
   const cookieOptions = {
     httpOnly: true,
-    secure: prodMode,
-    sameSite: prodMode ? "none" : "lax",
+    secure: PROD_MODE,
+    sameSite: PROD_MODE ? "none" : "lax",
     path: "/",
   };
+ 
 
   const token = req.body.token;
   if (!token) {
@@ -55,8 +56,8 @@ auth_router.put("/login_with_token", async (req, res) => {
 auth_router.put("/login_with_cookie", async (req, res) => {
   const cookieOptions = {
     httpOnly: true,
-    secure: prodMode,
-    sameSite: prodMode ? "none" : "lax",
+    secure: PROD_MODE,
+    sameSite: PROD_MODE ? "none" : "lax",
     path: "/",
   };
 
@@ -133,8 +134,8 @@ auth_router.put("/login", async (req, res) => {
     await newToken.save();
     const cookieOptions = {
       httpOnly: true,
-      secure: prodMode,
-      sameSite: prodMode ? "none" : "lax",
+      secure: PROD_MODE,
+      sameSite: PROD_MODE ? "none" : "lax",
       path: "/",
     };
 
@@ -195,8 +196,8 @@ auth_router.post("/register", async (req, res) => {
 
     const cookieOptions = {
       httpOnly: true,
-      secure: prodMode,
-      sameSite: prodMode ? "none" : "lax",
+      secure: PROD_MODE,
+      sameSite: PROD_MODE ? "none" : "lax",
       path: "/",
       expires: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
     };
@@ -224,8 +225,8 @@ auth_router.delete("/logout", async (req, res) => {
   try {
     const cookieOptions = {
       httpOnly: true,
-      secure: prodMode,
-      sameSite: prodMode ? "none" : "lax",
+      secure: PROD_MODE,
+      sameSite: PROD_MODE ? "none" : "lax",
       path: "/",
     };
     const token = req.cookies.access_token;
