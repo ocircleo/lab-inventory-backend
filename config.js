@@ -3,6 +3,7 @@ const WEB_URLS = [
   "lab-inventory-frontend-orpin.vercel.app",
   "192.168.0.100",
   "192.168.0.120",
+  "localhost"
 ];
 const FRONT_END_DOMAIN = PROD_MODE ? WEB_URLS[0] : WEB_URLS[1];
 const ALLOWED_CORS_LIST = [
